@@ -4,6 +4,12 @@ import {
   aggregateConsoleStats,
   fetchAllInvestments,
 } from "@/lib/console/aggregate-stats";
+import {
+  getReferralLevelSummaries,
+  getReferralTotals,
+  normalizeReferralStats,
+} from "@/lib/referral-stats";
+import { REFERRAL_RATES } from "@/lib/finance";
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -41,8 +47,8 @@ function inRange(
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const type = request.nextUrl.searchParams.get("type") ?? "platform-summary";
@@ -65,6 +71,7 @@ export async function GET(request: NextRequest) {
         dailyDue: i.dailyDue,
         day: `${i.daysAccrued}/${i.termDays}`,
         dueToday: i.dueToday ? "yes" : "no",
+        maturityDate: i.maturityAt,
         status: i.status,
       }));
       break;
@@ -96,6 +103,9 @@ export async function GET(request: NextRequest) {
       const snap = await auth.db.collection("users").get();
       rows = snap.docs.map((d) => {
         const data = d.data();
+        const referral = normalizeReferralStats(data.referralStats);
+        const totals = getReferralTotals(referral);
+        const levels = getReferralLevelSummaries(referral);
         return {
           displayName: data.displayName,
           email: data.email,
@@ -105,8 +115,52 @@ export async function GET(request: NextRequest) {
           depositBalance: data.depositBalance ?? 0,
           totalDeposited: data.totalDeposited ?? 0,
           totalWithdrawn: data.totalWithdrawn ?? 0,
+          totalBotEarnings: data.totalEarnings ?? 0,
+          referralEarned: totals.totalEarned,
+          referralNetwork: totals.totalMembers,
+          directReferrals: totals.directMembers,
+          downlineInvested: totals.totalInvested,
+          ...Object.fromEntries(
+            levels.flatMap((l) => [
+              [`l${l.level}Members`, l.members],
+              [`l${l.level}Invested`, l.invested],
+              [`l${l.level}Earned`, l.earned],
+            ])
+          ),
         };
       });
+      break;
+    }
+    case "referrals": {
+      filename = "referrals";
+      const snap = await auth.db.collection("users").get();
+      const platformLevels = REFERRAL_RATES.map((rate, i) => ({
+        level: i + 1,
+        percent: Math.round(rate * 100),
+        members: 0,
+        invested: 0,
+        earned: 0,
+      }));
+
+      for (const d of snap.docs) {
+        const levels = getReferralLevelSummaries(
+          normalizeReferralStats(d.data().referralStats)
+        );
+        for (const l of levels) {
+          const row = platformLevels[l.level - 1];
+          row.members += l.members;
+          row.invested += l.invested;
+          row.earned += l.earned;
+        }
+      }
+
+      rows = platformLevels.map((l) => ({
+        level: l.level,
+        commissionPercent: l.percent,
+        totalMembers: l.members,
+        totalDownlineInvested: Math.round(l.invested * 100) / 100,
+        totalCommissionsEarned: Math.round(l.earned * 100) / 100,
+      }));
       break;
     }
     case "investments": {
@@ -121,6 +175,7 @@ export async function GET(request: NextRequest) {
           day: `${i.daysAccrued}/${i.termDays}`,
           dailyDue: i.dailyDue,
           totalAccrued: i.totalAccrued,
+          maturityDate: i.maturityAt,
           status: i.status,
           subscribedAt: i.subscribedAt,
         }));

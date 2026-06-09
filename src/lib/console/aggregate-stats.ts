@@ -1,8 +1,10 @@
 import { Firestore } from "firebase-admin/firestore";
+import { enrichBotInvestment } from "@/lib/investments";
+import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 import {
-  enrichBotInvestment,
-  type BotInvestmentData,
-} from "@/lib/investments";
+  getReferralTotals,
+  normalizeReferralStats,
+} from "@/lib/referral-stats";
 
 export async function aggregateConsoleStats(db: Firestore) {
   const usersSnap = await db.collection("users").get();
@@ -11,6 +13,9 @@ export async function aggregateConsoleStats(db: Firestore) {
   let totalDeposit = 0;
   let totalDeposited = 0;
   let totalWithdrawn = 0;
+  let totalBotEarnings = 0;
+  let totalReferralEarned = 0;
+  let totalReferralInvested = 0;
 
   for (const doc of usersSnap.docs) {
     const d = doc.data();
@@ -18,6 +23,11 @@ export async function aggregateConsoleStats(db: Firestore) {
     totalDeposit += d.depositBalance ?? 0;
     totalDeposited += d.totalDeposited ?? 0;
     totalWithdrawn += d.totalWithdrawn ?? 0;
+    totalBotEarnings += d.totalEarnings ?? 0;
+
+    const referral = getReferralTotals(normalizeReferralStats(d.referralStats));
+    totalReferralEarned += referral.totalEarned;
+    totalReferralInvested += referral.totalInvested;
   }
 
   const pendingSnap = await db
@@ -30,25 +40,17 @@ export async function aggregateConsoleStats(db: Firestore) {
     pendingWithdrawalAmount += doc.data().amount ?? 0;
   }
 
-  const activeBotsSnap = await db
-    .collectionGroup("bots")
-    .where("status", "==", "active")
-    .get();
+  const activeBots = await fetchAllUserBots(db, "active");
 
   let activePrincipal = 0;
   let todayLiability = 0;
   let dueTodayCount = 0;
   let completingTodayCount = 0;
 
-  for (const botDoc of activeBotsSnap.docs) {
-    const bot = botDoc.data() as BotInvestmentData;
+  for (const { userId, botId, data: bot } of activeBots) {
     activePrincipal += bot.amount ?? 0;
 
-    const enriched = enrichBotInvestment(
-      bot,
-      botDoc.ref.parent.parent?.id ?? "",
-      botDoc.id
-    );
+    const enriched = enrichBotInvestment(bot, userId, botId);
 
     if (enriched.dueToday) {
       todayLiability += enriched.dailyDue;
@@ -62,9 +64,9 @@ export async function aggregateConsoleStats(db: Firestore) {
   return {
     totalMembers: usersSnap.size,
     pendingWithdrawals: pendingSnap.size,
-    pendingWithdrawalAmount,
-    activeInvestments: activeBotsSnap.size,
-    activePrincipal,
+    pendingWithdrawalAmount: Math.round(pendingWithdrawalAmount * 100) / 100,
+    activeInvestments: activeBots.length,
+    activePrincipal: Math.round(activePrincipal * 100) / 100,
     todayPayoutLiability: Math.round(todayLiability * 100) / 100,
     dueTodayCount,
     completingTodayCount,
@@ -72,6 +74,9 @@ export async function aggregateConsoleStats(db: Firestore) {
     totalDeposit: Math.round(totalDeposit * 100) / 100,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,
+    totalBotEarnings: Math.round(totalBotEarnings * 100) / 100,
+    totalReferralEarned: Math.round(totalReferralEarned * 100) / 100,
+    totalReferralInvested: Math.round(totalReferralInvested * 100) / 100,
   };
 }
 
@@ -80,22 +85,16 @@ export async function fetchAllInvestments(
   status: "active" | "completed" | "all" = "all",
   dueTodayOnly = false
 ) {
-  let query = db.collectionGroup("bots") as FirebaseFirestore.Query;
+  const botRefs =
+    status === "all"
+      ? await fetchAllUserBots(db)
+      : await fetchAllUserBots(db, status);
 
-  if (status !== "all") {
-    query = query.where("status", "==", status);
-  }
-
-  const botsSnap = await query.get();
-  const userIds = new Set<string>();
-  for (const doc of botsSnap.docs) {
-    const uid = doc.ref.parent.parent?.id;
-    if (uid) userIds.add(uid);
-  }
-
+  const userIds = [...new Set(botRefs.map((b) => b.userId))];
   const userMap = new Map<string, { email: string; displayName: string }>();
+
   await Promise.all(
-    Array.from(userIds).map(async (uid) => {
+    userIds.map(async (uid) => {
       const snap = await db.collection("users").doc(uid).get();
       if (snap.exists) {
         const d = snap.data()!;
@@ -107,11 +106,9 @@ export async function fetchAllInvestments(
     })
   );
 
-  const investments = botsSnap.docs.map((doc) => {
-    const userId = doc.ref.parent.parent?.id ?? "";
-    const bot = doc.data() as BotInvestmentData;
-    return enrichBotInvestment(bot, userId, doc.id, userMap.get(userId));
-  });
+  const investments = botRefs.map(({ userId, botId, data }) =>
+    enrichBotInvestment(data, userId, botId, userMap.get(userId))
+  );
 
   const filtered = dueTodayOnly
     ? investments.filter((i) => i.dueToday)

@@ -31,6 +31,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { generateReferralCode } from "@/lib/finance";
+import { createEmptyReferralStats } from "@/lib/referral-stats";
 import { UserProfile } from "@/types";
 
 interface AuthContextValue {
@@ -96,11 +97,23 @@ async function ensureUserProfile(
     totalEarnings: 0,
     securityPinHash: null,
     role: "user",
-    referralStats: { level1: 0, level2to5: 0, totalEarned: 0 },
+    referralStats: createEmptyReferralStats(),
   };
 
   await setDoc(ref, profile);
   return profile;
+}
+
+async function trackReferralSignupOnServer(user: User) {
+  try {
+    const token = await user.getIdToken();
+    await fetch("/api/referral/on-signup", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // Non-blocking — stats update can be retried on next login if needed
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -124,7 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser && db) {
         const snap = await getDoc(doc(db, "users", firebaseUser.uid));
         if (snap.exists()) {
-          setProfile(snap.data() as UserProfile);
+          const data = snap.data() as UserProfile;
+          setProfile(data);
+          if (data.referredBy && !data.referralNetworkTracked) {
+            await trackReferralSignupOnServer(firebaseUser);
+            const refreshed = await getDoc(doc(db, "users", firebaseUser.uid));
+            if (refreshed.exists()) {
+              setProfile(refreshed.data() as UserProfile);
+            }
+          }
         } else {
           const p = await ensureUserProfile(firebaseUser);
           setProfile(p);
@@ -158,7 +179,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
     const p = await ensureUserProfile(cred.user, displayName, referralCode);
-    setProfile(p);
+    if (p.referredBy) {
+      await trackReferralSignupOnServer(cred.user);
+      const snap = await getDoc(doc(db!, "users", cred.user.uid));
+      if (snap.exists()) setProfile(snap.data() as UserProfile);
+    } else {
+      setProfile(p);
+    }
   };
 
   const logout = async () => {

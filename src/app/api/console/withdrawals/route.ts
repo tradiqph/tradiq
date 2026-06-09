@@ -5,8 +5,8 @@ import { serializeDoc } from "@/lib/console/serialize";
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const status = request.nextUrl.searchParams.get("status") ?? "pending";
@@ -23,10 +23,39 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ requests });
 }
 
+async function findWithdrawalTransaction(
+  db: FirebaseFirestore.Firestore,
+  userId: string,
+  requestId: string,
+  amount: number
+) {
+  const byRequestId = await db
+    .collection("users")
+    .doc(userId)
+    .collection("transactions")
+    .where("metadata.withdrawalRequestId", "==", requestId)
+    .limit(1)
+    .get();
+
+  if (!byRequestId.empty) return byRequestId.docs[0];
+
+  const legacy = await db
+    .collection("users")
+    .doc(userId)
+    .collection("transactions")
+    .where("type", "==", "withdrawal")
+    .where("status", "==", "pending")
+    .where("amount", "==", amount)
+    .limit(1)
+    .get();
+
+  return legacy.empty ? null : legacy.docs[0];
+}
+
 export async function PATCH(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { requestId, action } = await request.json();
@@ -43,17 +72,15 @@ export async function PATCH(request: NextRequest) {
   const reqData = reqSnap.data()!;
   const userId = reqData.userId as string;
   const amount = reqData.amount as number;
+  const netPayout = (reqData.netPayout as number | undefined) ?? amount;
 
   if (action === "approve") {
     await auth.db.runTransaction(async (tx) => {
       const userRef = auth.db.collection("users").doc(userId);
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) throw new Error("User not found");
-      const balance = userSnap.data()?.walletBalance ?? 0;
-      if (balance < amount) throw new Error("Insufficient balance");
 
       tx.update(userRef, {
-        walletBalance: FieldValue.increment(-amount),
         totalWithdrawn: FieldValue.increment(amount),
       });
 
@@ -64,43 +91,47 @@ export async function PATCH(request: NextRequest) {
       });
     });
 
-    const txSnap = await auth.db
-      .collection("users")
-      .doc(userId)
-      .collection("transactions")
-      .where("type", "==", "withdrawal")
-      .where("status", "==", "pending")
-      .where("amount", "==", amount)
-      .limit(1)
-      .get();
+    const txDoc = await findWithdrawalTransaction(
+      auth.db,
+      userId,
+      requestId,
+      amount
+    );
 
-    if (!txSnap.empty) {
-      await txSnap.docs[0].ref.update({
+    if (txDoc) {
+      await txDoc.ref.update({
         status: "approved",
-        subtitle: "Approved",
+        subtitle: `Approved · ₱${netPayout.toLocaleString("en-PH", { minimumFractionDigits: 2 })} sent`,
       });
     }
   } else {
-    await reqRef.update({
-      status: "rejected",
-      reviewedAt: FieldValue.serverTimestamp(),
-      reviewedBy: auth.decoded.uid,
+    await auth.db.runTransaction(async (tx) => {
+      const userRef = auth.db.collection("users").doc(userId);
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) throw new Error("User not found");
+
+      tx.update(userRef, {
+        walletBalance: FieldValue.increment(amount),
+      });
+
+      tx.update(reqRef, {
+        status: "rejected",
+        reviewedAt: FieldValue.serverTimestamp(),
+        reviewedBy: auth.decoded.uid,
+      });
     });
 
-    const txSnap = await auth.db
-      .collection("users")
-      .doc(userId)
-      .collection("transactions")
-      .where("type", "==", "withdrawal")
-      .where("status", "==", "pending")
-      .where("amount", "==", amount)
-      .limit(1)
-      .get();
+    const txDoc = await findWithdrawalTransaction(
+      auth.db,
+      userId,
+      requestId,
+      amount
+    );
 
-    if (!txSnap.empty) {
-      await txSnap.docs[0].ref.update({
+    if (txDoc) {
+      await txDoc.ref.update({
         status: "rejected",
-        subtitle: "Rejected",
+        subtitle: "Rejected · balance refunded",
       });
     }
   }

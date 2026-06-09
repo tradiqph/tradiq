@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { verifyAuthToken } from "@/lib/api-auth";
 import { getAdminDb } from "@/lib/firebase/admin";
-import {
-  DAILY_BOT_RATE,
-  REFERRAL_RATES,
-  calculateReferralCommissions,
-} from "@/lib/finance";
+import { DAILY_BOT_RATE } from "@/lib/finance";
 import { BOT_TERM_DAYS } from "@/lib/investments";
+import { applyReferralCommissions } from "@/lib/referral-payout";
 
 export async function POST(request: NextRequest) {
   const decoded = await verifyAuthToken(request);
@@ -69,38 +66,7 @@ export async function POST(request: NextRequest) {
     });
   });
 
-  // Referral commissions
-  const commissions = calculateReferralCommissions(num);
-  let currentUid: string | null = userData.referredBy ?? null;
-
-  for (let level = 0; level < REFERRAL_RATES.length && currentUid; level++) {
-    const commission = commissions[level];
-    const referrerRef = db.collection("users").doc(currentUid);
-    const referrerSnap = await referrerRef.get();
-    if (!referrerSnap.exists) break;
-
-    await db.runTransaction(async (tx) => {
-      tx.update(referrerRef, {
-        walletBalance: FieldValue.increment(commission),
-        "referralStats.totalEarned": FieldValue.increment(commission),
-        ...(level === 0
-          ? { "referralStats.level1": FieldValue.increment(1) }
-          : { "referralStats.level2to5": FieldValue.increment(1) }),
-      });
-
-      tx.set(referrerRef.collection("transactions").doc(), {
-        type: "referral",
-        amount: commission,
-        status: "paid",
-        title: `Referral L${level + 1}`,
-        subtitle: `Commission from bot subscription`,
-        metadata: { level: level + 1, fromUserId: decoded.uid },
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    });
-
-    currentUid = referrerSnap.data()?.referredBy ?? null;
-  }
+  await applyReferralCommissions(db, decoded.uid, num);
 
   return NextResponse.json({ success: true });
 }

@@ -48,7 +48,7 @@ export async function verifyAuthToken(
       const decoded = await adminAuth.verifyIdToken(token);
       return { uid: decoded.uid, email: decoded.email };
     } catch {
-      return null;
+      // Fall through — Vercel may have a partial Admin setup while Identity Toolkit still works.
     }
   }
 

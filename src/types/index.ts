@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import type { ReferralStats } from "@/lib/referral-stats";
 
 export type UserRole = "super_admin" | "admin" | "user";
 
@@ -16,11 +17,8 @@ export interface UserProfile {
   totalEarnings: number;
   securityPinHash: string | null;
   role: UserRole;
-  referralStats: {
-    level1: number;
-    level2to5: number;
-    totalEarned: number;
-  };
+  referralStats: ReferralStats;
+  referralNetworkTracked?: boolean;
 }
 
 export type TransactionType =
@@ -71,6 +69,9 @@ export interface WithdrawalRequest {
   userId: string;
   userEmail: string;
   amount: number;
+  processingFee?: number;
+  processingFeeRate?: number;
+  netPayout?: number;
   accountSnapshot: WithdrawalAccount;
   status: "pending" | "approved" | "rejected";
   createdAt: Timestamp;

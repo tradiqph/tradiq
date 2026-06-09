@@ -25,7 +25,7 @@ const features = [
 ];
 
 export function SmartWalletEngine() {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="surface-accent mx-4 overflow-hidden">

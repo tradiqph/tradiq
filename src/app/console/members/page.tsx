@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConsoleError } from "@/components/console/console-error";
 import { DataTable } from "@/components/console/data-table";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
@@ -71,7 +72,7 @@ export default function ConsoleMembersPage() {
       {loading ? (
         <p className="text-zinc-500">Loading members...</p>
       ) : error ? (
-        <p className="text-red-400">{error}</p>
+        <ConsoleError message={error} />
       ) : (
         <DataTable
           data={data?.members ?? []}

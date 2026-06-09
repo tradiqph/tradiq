@@ -18,8 +18,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import {
+  calculateWithdrawalBreakdown,
+  formatPeso,
+  validateWithdrawalAmount,
+  WITHDRAWAL_MAX_AMOUNT,
+  WITHDRAWAL_MIN_AMOUNT,
+} from "@/lib/finance";
+import { createWithdrawalOnClient } from "@/lib/withdrawals";
 import { maskAccountNumber } from "@/lib/withdrawal-accounts";
 import { WithdrawalAccount } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface WithdrawModalProps {
   open: boolean;
@@ -27,7 +36,7 @@ interface WithdrawModalProps {
 }
 
 export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [accounts, setAccounts] = useState<(WithdrawalAccount & { id: string })[]>([]);
@@ -50,18 +59,26 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
 
   const walletBalance = profile?.walletBalance ?? 0;
   const num = parseFloat(amount) || 0;
+  const breakdown = num > 0 ? calculateWithdrawalBreakdown(num) : null;
   const hasPin = Boolean(profile?.securityPinHash);
   const selected = accounts.find((a) => a.id === selectedAccount);
 
+  const amountError = num > 0 ? validateWithdrawalAmount(num) : null;
+  const exceedsBalance = num > walletBalance;
+
   const handleSubmit = async () => {
-    if (!user || num <= 0 || num > walletBalance) return;
-    if (!selectedAccount) {
+    if (!user || amountError || exceedsBalance) return;
+    if (!selectedAccount || !selected) {
       toast.error("Add a withdrawal account first");
+      return;
+    }
+    if (hasPin && !pin) {
+      toast.error("Enter your security PIN");
       return;
     }
     setLoading(true);
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch("/api/withdrawals/create", {
         method: "POST",
         headers: {
@@ -75,8 +92,26 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Withdrawal failed");
-      toast.success("Withdrawal request submitted");
+      if (!res.ok && !data.withdrawLocally) {
+        throw new Error(data.error ?? "Withdrawal failed");
+      }
+
+      if (data.withdrawLocally) {
+        await createWithdrawalOnClient({
+          userId: user.uid,
+          userEmail: profile?.email ?? user.email ?? "",
+          amount: num,
+          accountSnapshot: selected,
+          securityPinHash: profile?.securityPinHash ?? null,
+          pin: hasPin ? pin : undefined,
+        });
+      }
+      toast.success(
+        breakdown
+          ? `${formatPeso(breakdown.amount)} deducted · pending approval`
+          : "Withdrawal request submitted"
+      );
+      await refreshProfile();
       onOpenChange(false);
       setAmount("");
       setPin("");
@@ -158,11 +193,78 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           <Input
             type="number"
             placeholder="0.00"
+            min={WITHDRAWAL_MIN_AMOUNT}
+            max={WITHDRAWAL_MAX_AMOUNT}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="border-amber-500/20 bg-black text-white"
           />
+          <p className="text-[11px] text-zinc-500">
+            Min {formatPeso(WITHDRAWAL_MIN_AMOUNT)} · Max{" "}
+            {formatPeso(WITHDRAWAL_MAX_AMOUNT)} per request
+          </p>
+          {amountError && (
+            <p className="text-xs text-red-400">{amountError}</p>
+          )}
+          {exceedsBalance && num > 0 && !amountError && (
+            <p className="text-xs text-red-400">Insufficient wallet balance</p>
+          )}
         </div>
+
+        {breakdown ? (
+          <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-zinc-950 to-zinc-950 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
+                Withdrawal Summary
+              </p>
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                4% processing fee
+              </span>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-zinc-400">Requested amount</span>
+                <PesoAmount amount={breakdown.amount} className="text-white" />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-zinc-400">Processing fee (4%)</span>
+                <span className="font-semibold tabular-nums text-red-400">
+                  −{formatPeso(breakdown.processingFee)}
+                </span>
+              </div>
+              <div className="border-t border-white/5 pt-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-zinc-300">You receive</span>
+                  <PesoAmount
+                    amount={breakdown.netPayout}
+                    gold
+                    className="text-lg"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/5 bg-black/40 px-3 py-2.5">
+              <p className="text-[10px] leading-relaxed text-zinc-500">
+                <span className="font-semibold text-zinc-300">
+                  {formatPeso(breakdown.amount)}
+                </span>{" "}
+                will be deducted from your balance immediately and marked as{" "}
+                <span className="font-semibold text-amber-300">pending</span>{" "}
+                until admin approval. Your payout account receives{" "}
+                <span className="font-semibold text-emerald-300">
+                  {formatPeso(breakdown.netPayout)}
+                </span>
+                .
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-amber-500/15 bg-amber-500/5 px-3 py-2.5 text-center text-[11px] text-zinc-500">
+            Enter an amount to see the 4% processing fee and net payout.
+          </p>
+        )}
 
         {hasPin && (
           <div className="space-y-1.5">
@@ -181,10 +283,21 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
 
         <GoldButton
           onClick={handleSubmit}
-          disabled={loading || num <= 0 || num > walletBalance || !selectedAccount}
-          className="w-full"
+          disabled={
+            loading ||
+            num <= 0 ||
+            Boolean(amountError) ||
+            exceedsBalance ||
+            !selectedAccount ||
+            (hasPin && pin.length < 4)
+          }
+          className={cn("w-full", breakdown && "mt-1")}
         >
-          {loading ? "Submitting..." : "Submit Withdrawal Request"}
+          {loading
+            ? "Submitting..."
+            : breakdown
+              ? `Request ${formatPeso(breakdown.amount)} Withdrawal`
+              : "Submit Withdrawal Request"}
         </GoldButton>
       </DialogContent>
     </Dialog>

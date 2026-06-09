@@ -11,6 +11,7 @@ const reportTypes = [
   { value: "daily-liability", label: "Daily liability" },
   { value: "withdrawals", label: "Withdrawals" },
   { value: "members", label: "Members" },
+  { value: "referrals", label: "Referrals (by level)" },
   { value: "investments", label: "Investments" },
 ];
 

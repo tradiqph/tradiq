@@ -48,6 +48,34 @@ export function calculateDailyEarning(botAmount: number): number {
   return Math.round(botAmount * DAILY_BOT_RATE * 100) / 100;
 }
 
+export const WITHDRAWAL_MIN_AMOUNT = 300;
+export const WITHDRAWAL_MAX_AMOUNT = 10000;
+export const WITHDRAWAL_PROCESSING_FEE_RATE = 0.04;
+
+export function validateWithdrawalAmount(amount: number): string | null {
+  if (!amount || amount <= 0) return "Enter a valid amount";
+  if (amount < WITHDRAWAL_MIN_AMOUNT) {
+    return `Minimum withdrawal is ${formatPeso(WITHDRAWAL_MIN_AMOUNT)}`;
+  }
+  if (amount > WITHDRAWAL_MAX_AMOUNT) {
+    return `Maximum withdrawal is ${formatPeso(WITHDRAWAL_MAX_AMOUNT)} per request`;
+  }
+  return null;
+}
+
+export function calculateWithdrawalBreakdown(amount: number) {
+  const processingFee =
+    Math.round(amount * WITHDRAWAL_PROCESSING_FEE_RATE * 100) / 100;
+  const netPayout = Math.round((amount - processingFee) * 100) / 100;
+
+  return {
+    amount,
+    processingFee,
+    netPayout,
+    feePercent: Math.round(WITHDRAWAL_PROCESSING_FEE_RATE * 100),
+  };
+}
+
 export const BOT_TERM_DAYS = 30;
 
 export function calculateBotTermProjection(amount: number) {

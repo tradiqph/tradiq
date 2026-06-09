@@ -83,6 +83,24 @@ export function getNextPayoutAt(bot: BotInvestmentData): Date | null {
   return new Date(anchor.getTime() + MS_PER_DAY);
 }
 
+/** When the final payout (day 30) and principal return occur. */
+export function getMaturityAt(bot: BotInvestmentData): Date | null {
+  const subscribedAt = toDate(bot.subscribedAt);
+  if (!subscribedAt) return null;
+
+  const termDays = getTermDays(bot);
+  const daysAccrued = inferDaysAccrued(bot);
+  const lastAccruedAt = toDate(bot.lastAccruedAt);
+
+  if (bot.status === "completed") {
+    return lastAccruedAt ?? new Date(subscribedAt.getTime() + termDays * MS_PER_DAY);
+  }
+
+  const payoutsRemaining = Math.max(0, termDays - daysAccrued);
+  const anchor = lastAccruedAt ?? subscribedAt;
+  return new Date(anchor.getTime() + payoutsRemaining * MS_PER_DAY);
+}
+
 export function enrichBotInvestment(
   bot: BotInvestmentData,
   userId: string,
@@ -113,5 +131,6 @@ export function enrichBotInvestment(
     subscribedAt: toDate(bot.subscribedAt)?.toISOString() ?? null,
     lastAccruedAt: toDate(bot.lastAccruedAt)?.toISOString() ?? null,
     nextPayoutAt: getNextPayoutAt(bot)?.toISOString() ?? null,
+    maturityAt: getMaturityAt(bot)?.toISOString() ?? null,
   };
 }

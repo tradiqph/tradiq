@@ -18,7 +18,15 @@ export function useConsoleFetch<T>(url: string, deps: unknown[] = []) {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json: { error?: string } = {};
+      if (text) {
+        try {
+          json = JSON.parse(text) as { error?: string };
+        } catch {
+          throw new Error("Invalid server response");
+        }
+      }
       if (!res.ok) throw new Error(json.error ?? "Request failed");
       setData(json as T);
     } catch (e) {

@@ -3,8 +3,8 @@ import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const search = (request.nextUrl.searchParams.get("search") ?? "")
@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
   const members = await Promise.all(
     pageDocs.map(async (doc) => {
       const d = doc.data();
-      const botsSnap = await doc.ref
-        .collection("bots")
-        .where("status", "==", "active")
-        .get();
+      const botsSnap = await doc.ref.collection("bots").get();
+      const activeBots = botsSnap.docs.filter(
+        (b) => b.data().status === "active"
+      ).length;
 
       return {
         id: doc.id,
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         depositBalance: d.depositBalance ?? 0,
         totalDeposited: d.totalDeposited ?? 0,
         totalWithdrawn: d.totalWithdrawn ?? 0,
-        activeBots: botsSnap.size,
+        activeBots,
         memberSince: d.memberSince?.toDate?.()?.toISOString() ?? null,
       };
     })

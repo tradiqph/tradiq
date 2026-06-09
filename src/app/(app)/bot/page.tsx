@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { SmartWalletEngine } from "@/components/bot/smart-wallet-engine";
+import { UserBotCard } from "@/components/bot/user-bot-card";
 import { BotCatalogCard } from "@/components/bot/bot-catalog-card";
 import { SubscribeBotModal } from "@/components/modals/subscribe-bot-modal";
 import { GoldButton } from "@/components/ui/gold-button";
@@ -94,28 +95,7 @@ export default function BotPage() {
       ) : (
         <div className="mb-6 space-y-3">
           {filteredUserBots.map((bot) => (
-            <div
-              key={bot.id}
-              className="surface-flat mx-4 p-4"
-            >
-              <div className="flex justify-between">
-                <span className="font-bold text-white">Your Bot</span>
-                <span
-                  className={cn(
-                    "text-xs",
-                    bot.status === "active" ? "text-emerald-400" : "text-zinc-500"
-                  )}
-                >
-                  {bot.status.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-amber-400">
-                ₱{bot.amount.toLocaleString()}
-              </p>
-              <p className="text-xs text-zinc-500">
-                Earned: ₱{bot.totalAccrued.toFixed(2)} · 3% daily
-              </p>
-            </div>
+            <UserBotCard key={bot.id} bot={bot} />
           ))}
         </div>
       )}

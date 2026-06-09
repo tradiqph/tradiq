@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ConsoleError } from "@/components/console/console-error";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
@@ -32,7 +33,15 @@ export default function ConsoleDashboardPage() {
   }
 
   if (error || !data) {
-    return <p className="text-red-400">{error ?? "Failed to load stats"}</p>;
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-zinc-500">Platform overview</p>
+        </div>
+        <ConsoleError message={error ?? "Failed to load stats"} />
+      </div>
+    );
   }
 
   return (

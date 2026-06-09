@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { ConsoleError } from "@/components/console/console-error";
 import { DataTable } from "@/components/console/data-table";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
@@ -28,6 +29,7 @@ interface Investment {
   subscribedAt: string | null;
   lastAccruedAt: string | null;
   nextPayoutAt: string | null;
+  maturityAt: string | null;
 }
 
 interface InvestmentsResponse {
@@ -122,7 +124,7 @@ function InvestmentsContent() {
       {loading ? (
         <p className="text-zinc-500">Loading investments...</p>
       ) : error ? (
-        <p className="text-red-400">{error}</p>
+        <ConsoleError message={error} />
       ) : (
         <DataTable
           data={data?.investments ?? []}
@@ -180,6 +182,18 @@ function InvestmentsContent() {
                 i.lastAccruedAt
                   ? format(new Date(i.lastAccruedAt), "MMM d, HH:mm")
                   : "—",
+            },
+            {
+              key: "maturity",
+              header: "Maturity",
+              cell: (i) =>
+                i.maturityAt ? (
+                  <span className="text-zinc-300">
+                    {format(new Date(i.maturityAt), "MMM d, yyyy")}
+                  </span>
+                ) : (
+                  "—"
+                ),
             },
             {
               key: "status",

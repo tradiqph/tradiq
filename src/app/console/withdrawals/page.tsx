@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
+import { ConsoleError } from "@/components/console/console-error";
 import { GoldButton } from "@/components/ui/gold-button";
 import { PesoAmount } from "@/components/ui/peso-amount";
+import { formatPeso } from "@/lib/finance";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,6 +16,8 @@ interface WithdrawalRequestItem {
   id: string;
   userEmail: string;
   amount: number;
+  processingFee?: number;
+  netPayout?: number;
   status: string;
   accountSnapshot: {
     label: string;
@@ -38,17 +42,24 @@ export default function ConsoleWithdrawalsPage() {
   const [tab, setTab] = useState<TabStatus>("pending");
   const [requests, setRequests] = useState<WithdrawalRequestItem[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
     setFetching(true);
+    setFetchError(null);
     try {
       const token = await user.getIdToken();
       const res = await fetch(`/api/console/withdrawals?status=${tab}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok) setRequests(data.requests);
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) {
+        setFetchError(data.error ?? "Failed to load withdrawals");
+        return;
+      }
+      setRequests(data.requests);
     } finally {
       setFetching(false);
     }
@@ -106,7 +117,9 @@ export default function ConsoleWithdrawalsPage() {
         ))}
       </div>
 
-      {fetching ? (
+      {fetchError ? (
+        <ConsoleError message={fetchError} />
+      ) : fetching ? (
         <p className="text-zinc-500">Loading...</p>
       ) : requests.length === 0 ? (
         <div className="surface-flat p-8 text-center text-zinc-500">
@@ -123,8 +136,20 @@ export default function ConsoleWithdrawalsPage() {
                     {req.status}
                   </p>
                 </div>
-                <PesoAmount amount={req.amount} gold />
+                <div className="text-right">
+                  <PesoAmount amount={req.amount} gold />
+                  {req.netPayout != null && req.netPayout !== req.amount && (
+                    <p className="text-[10px] text-emerald-400">
+                      Payout: {formatPeso(req.netPayout)}
+                    </p>
+                  )}
+                </div>
               </div>
+              {req.processingFee != null && req.processingFee > 0 && (
+                <p className="mb-1 text-xs text-zinc-500">
+                  Fee (4%): ₱{req.processingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </p>
+              )}
               <p className="text-xs text-zinc-500">
                 {req.accountSnapshot.label} · {req.accountSnapshot.accountType}
                 {req.accountSnapshot.bankName

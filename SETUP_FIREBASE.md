@@ -53,11 +53,11 @@ This creates:
 - `botsCatalog/*` — 4 elite trading bots
 - `_meta/schema` — schema version marker
 
-### 7. Set admin user
+### 7. Set super admin user
 
 After registering your account, in Firestore Console set on your user doc:
 ```
-role: "admin"
+role: "super_admin"
 ```
 
 ## Collections structure

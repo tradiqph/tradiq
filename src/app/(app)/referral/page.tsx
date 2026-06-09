@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Copy, Users, Layers, Gift, TrendingUp, ChevronDown } from "lucide-react";
+import { Copy, Gift, TrendingUp, ChevronDown } from "lucide-react";
+import { ReferralLevelSummary } from "@/components/referral/referral-level-summary";
 import { AppHeader } from "@/components/layout/app-header";
 import { GoldButton } from "@/components/ui/gold-button";
-import { StatTile } from "@/components/ui/stat-tile";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { buildReferralLink } from "@/lib/app-url";
 import { getReferralRewardExamples } from "@/lib/finance";
 
 const commissionTiers = getReferralRewardExamples();
@@ -18,8 +19,11 @@ export default function ReferralPage() {
   const [expanded, setExpanded] = useState(false);
 
   const referralCode = profile?.referralCode ?? "";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const referralLink = `${appUrl}/register?ref=${referralCode}`;
+  const [referralLink, setReferralLink] = useState("");
+
+  useEffect(() => {
+    setReferralLink(buildReferralLink(referralCode));
+  }, [referralCode]);
 
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -47,8 +51,15 @@ export default function ReferralPage() {
           </div>
         </div>
 
+        {referralLink && (
+          <p className="break-all rounded-xl border border-white/5 bg-black/40 px-3 py-2 text-xs text-zinc-400">
+            {referralLink}
+          </p>
+        )}
+
         <GoldButton
           onClick={() => copy(referralLink, "Referral link")}
+          disabled={!referralLink}
           className="w-full"
         >
           <Copy className="mr-2 h-4 w-4" />
@@ -73,28 +84,7 @@ export default function ReferralPage() {
           </div>
         </div>
 
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-          <StatTile
-            label="Level 1"
-            value={profile?.referralStats.level1 ?? 0}
-            icon={Users}
-            className="min-w-[120px] shrink-0"
-          />
-          <StatTile
-            label="Level 2–5"
-            value={profile?.referralStats.level2to5 ?? 0}
-            icon={Layers}
-            className="min-w-[120px] shrink-0"
-          />
-          <StatTile
-            label="Earned"
-            value={profile?.referralStats.totalEarned ?? 0}
-            icon={Gift}
-            peso
-            gold
-            className="min-w-[120px] shrink-0"
-          />
-        </div>
+        {profile && <ReferralLevelSummary profile={profile} />}
 
         <div className="surface-flat overflow-hidden">
           <button
