@@ -41,8 +41,10 @@ function RegisterForm() {
       const code = referralCode.trim().toUpperCase();
       await register(email, password, displayName, code || undefined);
       router.push("/home");
-    } catch {
-      toast.error("Registration failed");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Registration failed";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

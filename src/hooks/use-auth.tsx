@@ -18,17 +18,7 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs,
-  limit,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { generateReferralCode } from "@/lib/finance";
 import { createEmptyReferralStats } from "@/lib/referral-stats";
@@ -53,15 +43,16 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function findUserByReferralCode(code: string): Promise<string | null> {
-  if (!db) return null;
-  const q = query(
-    collection(db, "users"),
-    where("referralCode", "==", code.toUpperCase()),
-    limit(1)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return snap.docs[0].id;
+  try {
+    const res = await fetch(
+      `/api/referral/resolve?code=${encodeURIComponent(code.toUpperCase())}`
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { referrerUid?: string | null };
+    return data.referrerUid ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function ensureUserProfile(
