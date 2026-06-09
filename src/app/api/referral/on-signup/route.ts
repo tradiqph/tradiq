@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Firestore } from "firebase-admin/firestore";
 import { verifyAuthToken } from "@/lib/api-auth";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { trackReferralSignup } from "@/lib/referral-payout";
+import { apiBadRequest, apiError } from "@/lib/security/api-errors";
+import { referralCodeSchema } from "@/lib/security/validation";
+
+async function resolveReferrerUid(
+  db: Firestore,
+  code: string
+): Promise<string | null> {
+  const snap = await db
+    .collection("users")
+    .where("referralCode", "==", code)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0].id;
+}
 
 export async function POST(request: NextRequest) {
   const decoded = await verifyAuthToken(request);
@@ -17,12 +33,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let referralCode: string | undefined;
   try {
+    const body = await request.json();
+    if (body?.referralCode && typeof body.referralCode === "string") {
+      referralCode = body.referralCode.trim();
+    }
+  } catch {
+    // Empty body is fine for users without a referral code
+  }
+
+  try {
+    const userRef = db.collection("users").doc(decoded.uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return apiBadRequest("User profile not found");
+    }
+
+    const userData = userSnap.data()!;
+
+    if (!userData.referredBy && referralCode) {
+      const parsed = referralCodeSchema.safeParse(referralCode);
+      if (parsed.success) {
+        const referrerUid = await resolveReferrerUid(db, parsed.data);
+        if (referrerUid && referrerUid !== decoded.uid) {
+          await userRef.update({ referredBy: referrerUid });
+        }
+      }
+    }
+
     await trackReferralSignup(db, decoded.uid);
     return NextResponse.json({ success: true });
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Failed to track referral signup";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError("referral/on-signup", e, 500, "Failed to process referral");
   }
 }

@@ -21,12 +21,33 @@ async function getPaymentIntentStatus(intentId: string, secretKey: string) {
   return data.data.attributes.status as string;
 }
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function setCorsHeaders(req: { headers: { origin?: string } }, res: { setHeader: (k: string, v: string) => void }) {
+  const origin = req.headers.origin ?? "";
+  if (ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+}
+
 export const fulfillDeposit = onRequest(
   {
     region: "asia-southeast1",
-    cors: true,
+    cors: false,
   },
   async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
     if (req.method !== "POST") {
       res.status(405).json({ error: "Method not allowed" });
       return;
@@ -39,7 +60,7 @@ export const fulfillDeposit = onRequest(
     }
 
     try {
-      await getAuth().verifyIdToken(authHeader.slice(7));
+      const decoded = await getAuth().verifyIdToken(authHeader.slice(7));
       const { intentId, depositId } = req.body ?? {};
 
       if (!intentId || typeof intentId !== "string") {
@@ -67,7 +88,8 @@ export const fulfillDeposit = onRequest(
       const synced = await fulfillPaidDeposit(
         db,
         intentId,
-        typeof depositId === "string" ? depositId : undefined
+        typeof depositId === "string" ? depositId : undefined,
+        decoded.uid
       );
 
       if (!synced) {
@@ -81,8 +103,9 @@ export const fulfillDeposit = onRequest(
 
       res.json({ intentStatus, synced: true, paid: true });
     } catch (e) {
+      console.error("[fulfillDeposit]", e);
       res.status(500).json({
-        error: e instanceof Error ? e.message : "Fulfillment failed",
+        error: "Fulfillment failed",
         synced: false,
       });
     }

@@ -27,7 +27,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import bcrypt from "bcryptjs";
 import {
   addDoc,
   collection,
@@ -235,14 +234,28 @@ export default function AccountPage() {
   };
 
   const setSecurityPin = async () => {
-    if (!user || !db) return;
-    if (pin.length < 4 || pin.length > 6) {
+    if (!user) return;
+    if (!/^\d{4,6}$/.test(pin)) {
       toast.error("PIN must be 4-6 digits");
       return;
     }
     try {
-      const hash = await bcrypt.hash(pin, 10);
-      await updateDoc(doc(db, "users", user.uid), { securityPinHash: hash });
+      const token = await user.getIdToken();
+      const res = await fetch("/api/account/pin", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          typeof data.error === "string" ? data.error : "Failed to save PIN"
+        );
+        return;
+      }
       await refreshProfile();
       toast.success("PIN set successfully");
       setPinOpen(false);

@@ -32,12 +32,41 @@ service cloud.firestore {
         || config.enableTestDepositFulfillment == true;
     }
 
+    function validNewUserProfile() {
+      let data = request.resource.data;
+      return data.walletBalance == 0
+        && data.depositBalance == 0
+        && data.totalDeposited == 0
+        && data.totalWithdrawn == 0
+        && data.totalEarnings == 0
+        && data.role == 'user'
+        && (!('securityPinHash' in data) || data.securityPinHash == null)
+        && (!('referredBy' in data) || data.referredBy == null)
+        && (!('referralNetworkTracked' in data) || data.referralNetworkTracked == false);
+    }
+
+    function protectedUserFields() {
+      return [
+        'walletBalance',
+        'depositBalance',
+        'totalDeposited',
+        'totalWithdrawn',
+        'totalEarnings',
+        'role',
+        'securityPinHash',
+        'referredBy',
+        'referralCode',
+        'referralStats',
+        'referralNetworkTracked',
+      ];
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) && validNewUserProfile();
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['walletBalance', 'depositBalance', 'totalDeposited', 'totalWithdrawn', 'totalEarnings', 'role']);
+          .hasAny(protectedUserFields());
 
       allow update: if isOwner(userId)
         && testDepositFulfillmentEnabled()
@@ -64,7 +93,8 @@ service cloud.firestore {
           && request.resource.data.type == 'deposit'
           && request.resource.data.status == 'pending'
           && request.resource.data.amount is number
-          && request.resource.data.amount >= 100;
+          && request.resource.data.amount >= 100
+          && request.resource.data.amount <= 10000;
         allow create: if isOwner(userId)
           && clientBotSubscribeEnabled()
           && request.resource.data.type == 'bot_subscribe'
@@ -132,6 +162,7 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.amount is number
         && request.resource.data.amount >= 100
+        && request.resource.data.amount <= 10000
         && request.resource.data.paymongoIntentId is string
         && request.resource.data.qrImageUrl is string;
       allow update: if isSignedIn()
@@ -149,7 +180,7 @@ service cloud.firestore {
     }
 
     match /appConfig/{docId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow write: if false;
     }
 

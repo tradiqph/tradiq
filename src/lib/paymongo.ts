@@ -117,6 +117,8 @@ export async function createQrPhPaymentIntent(amountInCentavos: number) {
   };
 }
 
+const WEBHOOK_TOLERANCE_SEC = 300;
+
 export function verifyPaymongoSignature(
   payload: string,
   signatureHeader: string | null,
@@ -135,10 +137,24 @@ export function verifyPaymongoSignature(
   const signature = parts.te || parts.v1;
   if (!timestamp || !signature) return false;
 
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) return false;
+  const ageSec = Math.abs(Math.floor(Date.now() / 1000) - ts);
+  if (ageSec > WEBHOOK_TOLERANCE_SEC) return false;
+
   const signed = crypto
     .createHmac("sha256", webhookSecret)
     .update(`${timestamp}.${payload}`)
     .digest("hex");
 
-  return signed === signature;
+  if (signed.length !== signature.length) return false;
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signed, "hex"),
+      Buffer.from(signature, "hex")
+    );
+  } catch {
+    return false;
+  }
 }

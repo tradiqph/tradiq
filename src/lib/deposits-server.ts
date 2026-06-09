@@ -1,10 +1,9 @@
 import { fulfillPaidDeposit } from "@/lib/deposit-fulfillment";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getPaymentIntentStatus, isPaymongoTestMode } from "@/lib/paymongo";
+import { isProduction } from "@/lib/security/env";
 
-const FULFILL_FUNCTION_URL =
-  process.env.FULFILL_DEPOSIT_FUNCTION_URL ??
-  "https://asia-southeast1-tradiq-f4962.cloudfunctions.net/fulfillDeposit";
+const FULFILL_FUNCTION_URL = process.env.FULFILL_DEPOSIT_FUNCTION_URL;
 
 export interface ClaimDepositResult {
   intentStatus: string;
@@ -17,7 +16,8 @@ export interface ClaimDepositResult {
 export async function claimDepositPayment(
   intentId: string,
   depositId: string | undefined,
-  idToken: string
+  idToken: string,
+  userId: string
 ): Promise<ClaimDepositResult> {
   const intentStatus = await getPaymentIntentStatus(intentId);
   const paid = intentStatus === "succeeded";
@@ -28,29 +28,36 @@ export async function claimDepositPayment(
 
   const db = getAdminDb();
   if (db) {
-    const synced = await fulfillPaidDeposit(db, intentId, depositId);
+    const synced = await fulfillPaidDeposit(
+      db,
+      intentId,
+      depositId,
+      userId
+    );
     return { intentStatus, paid: true, synced };
   }
 
-  try {
-    const res = await fetch(FULFILL_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ intentId, depositId }),
-    });
+  if (FULFILL_FUNCTION_URL) {
+    try {
+      const res = await fetch(FULFILL_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ intentId, depositId }),
+      });
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.synced) {
-      return { intentStatus, paid: true, synced: true };
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.synced) {
+        return { intentStatus, paid: true, synced: true };
+      }
+    } catch {
+      // Fall through
     }
-  } catch {
-    // Fall through to local test fulfillment
   }
 
-  if (isPaymongoTestMode()) {
+  if (!isProduction() && isPaymongoTestMode()) {
     return {
       intentStatus,
       paid: true,
@@ -63,7 +70,6 @@ export async function claimDepositPayment(
     intentStatus,
     paid: true,
     synced: false,
-    error:
-      "Payment confirmed by Paymongo. Add FIREBASE_ADMIN_SERVICE_ACCOUNT to .env.local to sync balances.",
+    error: "Payment confirmed. Server sync is temporarily unavailable.",
   };
 }

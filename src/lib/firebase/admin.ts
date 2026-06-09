@@ -3,33 +3,35 @@ import { join } from "path";
 import {
   initializeApp,
   getApps,
+  getApp,
   cert,
-  applicationDefault,
   App,
+  type ServiceAccount,
 } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import { getAuth, Auth } from "firebase-admin/auth";
+
+const ADMIN_APP_NAME = "tradiq-admin";
 
 let adminApp: App | null = null;
 let adminDb: Firestore | null = null;
 let adminAuth: Auth | null = null;
 
-function parseServiceAccountJson(raw: string) {
+function parseServiceAccountJson(raw: string): ServiceAccount | null {
   const trimmed = raw.trim();
   try {
-    return JSON.parse(trimmed);
+    return JSON.parse(trimmed) as ServiceAccount;
   } catch {
-    // Support .env values where the JSON was split across lines without escaping.
     const compact = trimmed.replace(/\s*\n\s*/g, "");
     try {
-      return JSON.parse(compact);
+      return JSON.parse(compact) as ServiceAccount;
     } catch {
       return null;
     }
   }
 }
 
-function getServiceAccountFromFile() {
+function getServiceAccountFromFile(): ServiceAccount | null {
   const candidatePaths = [
     process.env.FIREBASE_ADMIN_CREDENTIALS_PATH,
     join(process.cwd(), "firebase-service-account.json"),
@@ -39,7 +41,7 @@ function getServiceAccountFromFile() {
   for (const filePath of candidatePaths) {
     if (!existsSync(filePath)) continue;
     try {
-      return JSON.parse(readFileSync(filePath, "utf8"));
+      return JSON.parse(readFileSync(filePath, "utf8")) as ServiceAccount;
     } catch {
       continue;
     }
@@ -48,7 +50,7 @@ function getServiceAccountFromFile() {
   return null;
 }
 
-function getServiceAccount() {
+function getServiceAccount(): ServiceAccount | null {
   const fromFile = getServiceAccountFromFile();
   if (fromFile) return fromFile;
 
@@ -58,34 +60,44 @@ function getServiceAccount() {
   return parseServiceAccountJson(raw);
 }
 
-function initAdminApp(credential: ReturnType<typeof cert>): App | null {
-  try {
-    return getApps().length ? getApps()[0] : initializeApp({ credential });
-  } catch {
-    return null;
+function resolveProjectId(serviceAccount: ServiceAccount | null): string | null {
+  const raw = serviceAccount as ServiceAccount & { project_id?: string };
+  const fromAccount = raw?.projectId ?? raw?.project_id;
+  if (typeof fromAccount === "string" && fromAccount.length > 0) {
+    return fromAccount;
   }
+  const fromEnv = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  return fromEnv || null;
 }
 
 export function getAdminApp(): App | null {
   if (adminApp) return adminApp;
 
   const serviceAccount = getServiceAccount();
-  if (serviceAccount) {
-    adminApp = initAdminApp(cert(serviceAccount));
-    return adminApp;
+  const projectId = resolveProjectId(serviceAccount);
+
+  if (!serviceAccount || !projectId) {
+    return null;
   }
 
-  // Only use ADC when no explicit credentials file/env is expected
-  if (!process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT?.trim()) {
+  try {
+    adminApp = initializeApp(
+      {
+        credential: cert(serviceAccount),
+        projectId,
+      },
+      ADMIN_APP_NAME
+    );
+    return adminApp;
+  } catch {
     try {
-      adminApp = initAdminApp(applicationDefault());
+      const existing = getApps().find((app) => app.name === ADMIN_APP_NAME);
+      adminApp = existing ?? getApp(ADMIN_APP_NAME);
       return adminApp;
     } catch {
       return null;
     }
   }
-
-  return null;
 }
 
 export function getAdminDb(): Firestore | null {

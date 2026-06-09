@@ -3,7 +3,8 @@ import { FieldValue, Firestore } from "firebase-admin/firestore";
 export async function fulfillPaidDeposit(
   db: Firestore,
   intentId: string,
-  depositId?: string
+  depositId?: string,
+  expectedUserId?: string
 ) {
   let depositDoc = null;
 
@@ -32,20 +33,34 @@ export async function fulfillPaidDeposit(
 
   const deposit = depositDoc.data()!;
   const userId = deposit.userId as string;
+
+  if (expectedUserId && userId !== expectedUserId) {
+    return false;
+  }
+
   const amount = deposit.amount as number;
   const resolvedDepositId = depositDoc.id;
+  const depositRef = depositDoc.ref;
 
-  await db.runTransaction(async (tx) => {
+  const credited = await db.runTransaction(async (tx) => {
+    const freshDeposit = await tx.get(depositRef);
+    if (!freshDeposit.exists || freshDeposit.data()?.status !== "pending") {
+      return false;
+    }
+
     const userRef = db.collection("users").doc(userId);
     const userSnap = await tx.get(userRef);
-    if (!userSnap.exists) return;
+    if (!userSnap.exists) return false;
 
-    tx.update(depositDoc!.ref, { status: "paid" });
+    tx.update(depositRef, { status: "paid" });
     tx.update(userRef, {
       walletBalance: FieldValue.increment(amount),
       totalDeposited: FieldValue.increment(amount),
     });
+    return true;
   });
+
+  if (!credited) return false;
 
   const txRef = db
     .collection("users")

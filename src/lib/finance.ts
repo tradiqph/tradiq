@@ -48,9 +48,32 @@ export function calculateDailyEarning(botAmount: number): number {
   return Math.round(botAmount * DAILY_BOT_RATE * 100) / 100;
 }
 
+export const DEPOSIT_MIN_AMOUNT = 100;
+export const DEPOSIT_MAX_AMOUNT = 10000;
+export const BOT_MIN_AMOUNT = 1;
+export const BOT_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_MIN_AMOUNT = 300;
 export const WITHDRAWAL_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_PROCESSING_FEE_RATE = 0.04;
+
+export function validateDepositAmount(amount: number): string | null {
+  if (!amount || amount <= 0) return "Enter a valid amount";
+  if (amount < DEPOSIT_MIN_AMOUNT) {
+    return `Minimum deposit is ${formatPeso(DEPOSIT_MIN_AMOUNT)}`;
+  }
+  if (amount > DEPOSIT_MAX_AMOUNT) {
+    return `Maximum deposit is ${formatPeso(DEPOSIT_MAX_AMOUNT)}`;
+  }
+  return null;
+}
+
+export function validateBotSubscribeAmount(amount: number): string | null {
+  if (!amount || amount <= 0) return "Enter a valid amount";
+  if (amount > BOT_MAX_AMOUNT) {
+    return `Maximum subscription is ${formatPeso(BOT_MAX_AMOUNT)} per bot`;
+  }
+  return null;
+}
 
 export function validateWithdrawalAmount(amount: number): string | null {
   if (!amount || amount <= 0) return "Enter a valid amount";

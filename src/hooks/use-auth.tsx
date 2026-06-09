@@ -42,19 +42,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function findUserByReferralCode(code: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `/api/referral/resolve?code=${encodeURIComponent(code.toUpperCase())}`
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { referrerUid?: string | null };
-    return data.referrerUid ?? null;
-  } catch {
-    return null;
-  }
-}
-
 async function ensureUserProfile(
   user: User,
   displayName?: string,
@@ -68,18 +55,13 @@ async function ensureUserProfile(
     return snap.data() as UserProfile;
   }
 
-  let referredBy: string | null = null;
-  if (referralCode) {
-    referredBy = await findUserByReferralCode(referralCode);
-  }
-
   const name = displayName || user.displayName || user.email?.split("@")[0] || "User";
   const profile: UserProfile = {
     email: user.email ?? "",
     displayName: name,
     photoURL: user.photoURL,
     referralCode: generateReferralCode(name),
-    referredBy,
+    referredBy: null,
     memberSince: serverTimestamp() as never,
     walletBalance: 0,
     depositBalance: 0,
@@ -95,12 +77,21 @@ async function ensureUserProfile(
   return profile;
 }
 
-async function trackReferralSignupOnServer(user: User) {
+async function trackReferralSignupOnServer(
+  user: User,
+  referralCode?: string
+) {
   try {
     const token = await user.getIdToken();
     await fetch("/api/referral/on-signup", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        referralCode: referralCode?.trim().toUpperCase() || undefined,
+      }),
     });
   } catch {
     // Non-blocking — stats update can be retried on next login if needed
@@ -130,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (snap.exists()) {
           const data = snap.data() as UserProfile;
           setProfile(data);
-          if (data.referredBy && !data.referralNetworkTracked) {
+          if (!data.referralNetworkTracked) {
             await trackReferralSignupOnServer(firebaseUser);
             const refreshed = await getDoc(doc(db, "users", firebaseUser.uid));
             if (refreshed.exists()) {
@@ -170,13 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
     const p = await ensureUserProfile(cred.user, displayName, referralCode);
-    if (p.referredBy) {
-      await trackReferralSignupOnServer(cred.user);
-      const snap = await getDoc(doc(db!, "users", cred.user.uid));
-      if (snap.exists()) setProfile(snap.data() as UserProfile);
-    } else {
-      setProfile(p);
-    }
+    await trackReferralSignupOnServer(cred.user, referralCode);
+    const snap = await getDoc(doc(db!, "users", cred.user.uid));
+    if (snap.exists()) setProfile(snap.data() as UserProfile);
+    else setProfile(p);
   };
 
   const logout = async () => {
