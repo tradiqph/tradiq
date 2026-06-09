@@ -129,9 +129,9 @@ export default function AccountPage() {
     }
   };
 
-  const buildPayload = (form: WithdrawalAccountFormData) => {
+  const buildPayload = (form: WithdrawalAccountFormData): WithdrawalAccount => {
     const config = getAccountTypeConfig(form.accountType);
-    const payload: Record<string, string> = {
+    const payload: WithdrawalAccount = {
       label: form.label,
       accountType: form.accountType,
       accountNumber: form.accountNumber,
@@ -170,7 +170,7 @@ export default function AccountPage() {
       );
       setAccounts((prev) => [
         ...prev,
-        { id: docRef.id, ...payload } as WithdrawalAccount & { id: string },
+        { id: docRef.id, ...payload },
       ]);
       toast.success("Account saved");
     } catch {

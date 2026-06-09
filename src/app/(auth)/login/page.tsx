@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,12 +39,14 @@ function getLoginErrorMessage(error: unknown): string {
   return "Sign in failed";
 }
 
-const fieldVariants = {
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const fieldVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.35 + i * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: 0.35 + i * 0.07, duration: 0.4, ease: EASE_OUT },
   }),
 };
 
@@ -76,15 +78,12 @@ export default function LoginPage() {
     }
   };
 
-  const fieldMotion = (i: number) =>
-    reduceMotion
-      ? {}
-      : {
-          custom: i,
-          variants: fieldVariants,
-          initial: "hidden" as const,
-          animate: "show" as const,
-        };
+  const fieldMotion = (i: number) => ({
+    custom: i,
+    variants: fieldVariants,
+    initial: reduceMotion ? false : ("hidden" as const),
+    animate: reduceMotion ? false : ("show" as const),
+  });
 
   return (
     <AuthShell

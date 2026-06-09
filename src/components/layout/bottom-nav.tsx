@@ -7,7 +7,16 @@ import { usePathname } from "next/navigation";
 import { Home, Clock, Gift, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const tabs = [
+interface NavTab {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  imageSrc: string;
+  exact?: boolean;
+  isCenter?: boolean;
+}
+
+const tabs: NavTab[] = [
   {
     href: "/home",
     label: "Home",
@@ -40,7 +49,7 @@ const tabs = [
     icon: User,
     imageSrc: "/assets/nav-account-coin.png",
   },
-] as const;
+];
 
 function CoinIcon({
   imageSrc,

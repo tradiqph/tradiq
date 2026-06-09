@@ -25,11 +25,12 @@ export async function persistDepositOnClient({
   intentId,
   qrImageUrl,
 }: CreateDepositPayload) {
-  if (!db) throw new Error("Firebase not configured");
+  const firestore = db;
+  if (!firestore) throw new Error("Firebase not configured");
 
   const expiresAt = Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000));
 
-  await setDoc(doc(db, "deposits", depositId), {
+  await setDoc(doc(firestore, "deposits", depositId), {
     userId,
     amount,
     paymongoIntentId: intentId,
@@ -39,7 +40,7 @@ export async function persistDepositOnClient({
     createdAt: serverTimestamp(),
   });
 
-  await setDoc(doc(db, "users", userId, "transactions", depositId), {
+  await setDoc(doc(firestore, "users", userId, "transactions", depositId), {
     type: "deposit",
     amount,
     status: "pending",
@@ -57,17 +58,18 @@ export async function fulfillDepositOnClient({
   depositId: string;
   userId: string;
 }) {
-  if (!db) throw new Error("Firebase not configured");
+  const firestore = db;
+  if (!firestore) throw new Error("Firebase not configured");
 
-  const configSnap = await getDoc(doc(db, "appConfig", "platform"));
+  const configSnap = await getDoc(doc(firestore, "appConfig", "platform"));
   if (!configSnap.data()?.enableTestDepositFulfillment) {
     throw new Error("Local deposit fulfillment is not enabled");
   }
 
-  await runTransaction(db, async (tx) => {
-    const depositRef = doc(db, "deposits", depositId);
-    const userRef = doc(db, "users", userId);
-    const transactionRef = doc(db, "users", userId, "transactions", depositId);
+  await runTransaction(firestore, async (tx) => {
+    const depositRef = doc(firestore, "deposits", depositId);
+    const userRef = doc(firestore, "users", userId);
+    const transactionRef = doc(firestore, "users", userId, "transactions", depositId);
 
     const depositSnap = await tx.get(depositRef);
     if (!depositSnap.exists()) {

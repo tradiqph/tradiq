@@ -20,7 +20,8 @@ async function clientBotSubscribeEnabled() {
 }
 
 export async function subscribeBotOnClient(userId: string, amount: number) {
-  if (!db) throw new Error("Firebase not configured");
+  const firestore = db;
+  if (!firestore) throw new Error("Firebase not configured");
   if (!amount || amount <= 0) throw new Error("Invalid amount");
 
   const enabled = await clientBotSubscribeEnabled();
@@ -32,8 +33,8 @@ export async function subscribeBotOnClient(userId: string, amount: number) {
 
   const botId = crypto.randomUUID();
 
-  await runTransaction(db, async (tx) => {
-    const userRef = doc(db, "users", userId);
+  await runTransaction(firestore, async (tx) => {
+    const userRef = doc(firestore, "users", userId);
     const userSnap = await tx.get(userRef);
     if (!userSnap.exists()) throw new Error("User not found");
 
@@ -41,7 +42,7 @@ export async function subscribeBotOnClient(userId: string, amount: number) {
     if (balance < amount) throw new Error("Insufficient wallet balance");
 
     tx.update(userRef, { walletBalance: increment(-amount) });
-    tx.set(doc(db, "users", userId, "bots", botId), {
+    tx.set(doc(firestore, "users", userId, "bots", botId), {
       amount,
       status: "active",
       dailyRate: DAILY_BOT_RATE,
@@ -51,7 +52,7 @@ export async function subscribeBotOnClient(userId: string, amount: number) {
       daysAccrued: 0,
       termDays: BOT_TERM_DAYS,
     });
-    tx.set(doc(collection(db, "users", userId, "transactions")), {
+    tx.set(doc(collection(firestore, "users", userId, "transactions")), {
       type: "bot_subscribe",
       amount,
       status: "paid",

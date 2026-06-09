@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowLeft, Shield, Sparkles } from "lucide-react";
 
 interface AuthShellProps {
@@ -11,27 +11,26 @@ interface AuthShellProps {
   heroSubtitle: string;
 }
 
-const fadeUp = {
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.08, duration: 0.45, ease: EASE_OUT },
   }),
 };
 
 export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps) {
   const reduceMotion = useReducedMotion();
 
-  const motionProps = (i: number) =>
-    reduceMotion
-      ? {}
-      : {
-          initial: "hidden" as const,
-          animate: "show" as const,
-          custom: i,
-          variants: fadeUp,
-        };
+  const motionProps = (i: number) => ({
+    custom: i,
+    variants: fadeUp,
+    initial: reduceMotion ? false : ("hidden" as const),
+    animate: reduceMotion ? false : ("show" as const),
+  });
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-black">
@@ -160,7 +159,7 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
             className="w-full max-w-md"
             initial={reduceMotion ? undefined : { opacity: 0, x: 24 }}
             animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
-            transition={{ delay: 0.25, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: 0.25, duration: 0.5, ease: EASE_OUT }}
           >
             {children}
           </motion.div>
