@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TradIQ
 
-## Getting Started
+Mobile-first investment platform with copy-trading bots, QR Ph deposits (Paymongo), multi-level referrals, and black/gold glassmorphism UI.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 15** (App Router)
+- **Firebase** (Auth, Firestore, Cloud Functions)
+- **Paymongo** (QR Ph deposits)
+- **shadcn/ui** + [21st.dev](https://21st.dev/) components
+- **UI/UX Pro Max** design skill
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Firebase:** See [SETUP_FIREBASE.md](SETUP_FIREBASE.md) for database creation, billing, and seeding steps.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Copy `.env.example` to `.env.local` and fill in Firebase + Paymongo keys.
 
-## Learn More
+2. Install dependencies:
+   ```bash
+   npm install
+   cd functions && npm install && cd ..
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. Deploy Firestore rules:
+   ```bash
+   npx firebase deploy --only firestore:rules
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Seed bot catalog (optional):
+   ```bash
+   npx tsx src/scripts/seed-bots-catalog.ts
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Run dev server:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+## Admin Console
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Hidden at `/console` — set `role: "admin"` on your user document in Firestore.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Paymongo Webhook
+
+Point webhook to `https://your-domain.com/api/paymongo/webhook` with events:
+- `payment.paid`
+- `qrph.expired`
+- `payment.failed`
+
+## Daily Bot Earnings
+
+Cloud Function `dailyBotEarnings` runs at midnight Asia/Manila and credits 3% of active bot subscriptions to wallet balance.
