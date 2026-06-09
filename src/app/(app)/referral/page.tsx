@@ -15,8 +15,15 @@ import { getReferralRewardExamples } from "@/lib/finance";
 const commissionTiers = getReferralRewardExamples();
 
 export default function ReferralPage() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    void refreshProfile();
+    const onFocus = () => void refreshProfile();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshProfile]);
 
   const referralCode = profile?.referralCode ?? "";
   const [referralLink, setReferralLink] = useState("");
@@ -79,7 +86,8 @@ export default function ReferralPage() {
               <h2 className="font-bold text-white">Subscribe, Invite & Earn</h2>
             </div>
             <p className="text-sm text-zinc-400">
-              Share your code to earn bonuses on every referral subscription.
+              Earn a one-time bonus when referrals subscribe to a bot. Their
+              daily earnings stay theirs — you do not share those.
             </p>
           </div>
         </div>

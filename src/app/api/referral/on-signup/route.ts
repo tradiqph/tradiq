@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Firestore } from "firebase-admin/firestore";
+import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { verifyAuthToken } from "@/lib/api-auth";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { trackReferralSignup } from "@/lib/referral-payout";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
-import { referralCodeSchema } from "@/lib/security/validation";
+
+function normalizeReferralCode(raw: string): string {
+  return raw.trim().toUpperCase();
+}
 
 async function resolveReferrerUid(
   db: Firestore,
   code: string
 ): Promise<string | null> {
+  const normalized = normalizeReferralCode(code);
+  if (!normalized) return null;
+
   const snap = await db
     .collection("users")
-    .where("referralCode", "==", code)
+    .where("referralCode", "==", normalized)
     .limit(1)
     .get();
   if (snap.empty) return null;
@@ -37,33 +43,64 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (body?.referralCode && typeof body.referralCode === "string") {
-      referralCode = body.referralCode.trim();
+      referralCode = normalizeReferralCode(body.referralCode);
     }
   } catch {
-    // Empty body is fine for users without a referral code
+    // Empty body is fine — may retry with stored signupReferralCode
   }
 
   try {
     const userRef = db.collection("users").doc(decoded.uid);
-    const userSnap = await userRef.get();
+    let userSnap = await userRef.get();
     if (!userSnap.exists) {
       return apiBadRequest("User profile not found");
     }
 
-    const userData = userSnap.data()!;
+    let userData = userSnap.data()!;
+    const codeToResolve =
+      referralCode ??
+      (typeof userData.signupReferralCode === "string"
+        ? userData.signupReferralCode
+        : undefined);
 
-    if (!userData.referredBy && referralCode) {
-      const parsed = referralCodeSchema.safeParse(referralCode);
-      if (parsed.success) {
-        const referrerUid = await resolveReferrerUid(db, parsed.data);
-        if (referrerUid && referrerUid !== decoded.uid) {
-          await userRef.update({ referredBy: referrerUid });
-        }
+    const hadReferralCode = Boolean(codeToResolve);
+
+    if (!userData.referredBy && codeToResolve) {
+      const referrerUid = await resolveReferrerUid(db, codeToResolve);
+      if (referrerUid && referrerUid !== decoded.uid) {
+        await userRef.update({
+          referredBy: referrerUid,
+          signupReferralCode: codeToResolve,
+        });
+        userSnap = await userRef.get();
+        userData = userSnap.data()!;
+      } else if (referrerUid === decoded.uid) {
+        await userRef.update({ signupReferralCode: FieldValue.delete() });
+      } else {
+        await userRef.update({ signupReferralCode: codeToResolve });
       }
+    } else if (hadReferralCode && !userData.signupReferralCode) {
+      await userRef.update({ signupReferralCode: codeToResolve });
     }
 
-    await trackReferralSignup(db, decoded.uid);
-    return NextResponse.json({ success: true });
+    // Repair accounts that were marked tracked before referredBy was linked
+    const latest = (await userRef.get()).data()!;
+    if (
+      latest.referralNetworkTracked &&
+      !latest.referredBy &&
+      hadReferralCode
+    ) {
+      await userRef.update({ referralNetworkTracked: false });
+    }
+
+    await trackReferralSignup(db, decoded.uid, { hadReferralCode });
+
+    const finalSnap = await userRef.get();
+    return NextResponse.json({
+      success: true,
+      referredBy: finalSnap.data()?.referredBy ?? null,
+      tracked: Boolean(finalSnap.data()?.referralNetworkTracked),
+    });
   } catch (e) {
     return apiError("referral/on-signup", e, 500, "Failed to process referral");
   }

@@ -67,6 +67,18 @@ export function SubscribeBotModal({
 
       if (data.subscribeLocally) {
         await subscribeBotOnClient(user.uid, num);
+        try {
+          await fetch("/api/referral/apply-commissions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ amount: num }),
+          });
+        } catch {
+          // Commission sync is best-effort for local dev fallback
+        }
       }
 
       toast.success("Copy trading bot activated!");

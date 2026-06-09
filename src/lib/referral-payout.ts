@@ -3,23 +3,45 @@ import {
   REFERRAL_RATES,
   calculateReferralCommissions,
 } from "@/lib/finance";
-import { createEmptyReferralStats, normalizeReferralStats } from "@/lib/referral-stats";
+import {
+  createEmptyReferralStats,
+  normalizeReferralStats,
+  type ReferralStats,
+} from "@/lib/referral-stats";
 
 async function ensureReferralStatsStructure(
   db: Firestore,
   userRef: FirebaseFirestore.DocumentReference
-) {
+): Promise<ReferralStats> {
   const snap = await userRef.get();
-  const stats = snap.data()?.referralStats;
-  if (stats?.levels?.length === REFERRAL_RATES.length) return;
+  const stats = normalizeReferralStats(snap.data()?.referralStats);
 
-  await userRef.set(
-    { referralStats: normalizeReferralStats(stats) },
-    { merge: true }
-  );
+  if (snap.data()?.referralStats?.levels?.length !== REFERRAL_RATES.length) {
+    await userRef.set({ referralStats: stats }, { merge: true });
+  }
+
+  return stats;
 }
 
-/** Credit uplines when a downline subscribes to a bot (not on deposit). */
+function applyLevelCommission(
+  stats: ReferralStats,
+  level: number,
+  amount: number,
+  commission: number
+) {
+  stats.levels[level].invested =
+    Math.round((stats.levels[level].invested + amount) * 100) / 100;
+  stats.levels[level].earned =
+    Math.round((stats.levels[level].earned + commission) * 100) / 100;
+  stats.totalEarned =
+    Math.round((stats.totalEarned + commission) * 100) / 100;
+}
+
+/**
+ * One-time commission when a downline subscribes to a bot.
+ * Does NOT run on daily bot earnings, deposits, or principal returns —
+ * those belong entirely to the investor.
+ */
 export async function applyReferralCommissions(
   db: Firestore,
   subscriberUid: string,
@@ -37,17 +59,17 @@ export async function applyReferralCommissions(
     const referrerUid: string = uplineUid;
     const commission = commissions[level];
     const referrerRef = db.collection("users").doc(referrerUid);
-    const referrerSnap = await referrerRef.get();
-    if (!referrerSnap.exists) break;
-
-    await ensureReferralStatsStructure(db, referrerRef);
 
     await db.runTransaction(async (tx) => {
+      const referrerSnap = await tx.get(referrerRef);
+      if (!referrerSnap.exists) return;
+
+      const stats = normalizeReferralStats(referrerSnap.data()?.referralStats);
+      applyLevelCommission(stats, level, amount, commission);
+
       tx.update(referrerRef, {
         walletBalance: FieldValue.increment(commission),
-        "referralStats.totalEarned": FieldValue.increment(commission),
-        [`referralStats.levels.${level}.invested`]: FieldValue.increment(amount),
-        [`referralStats.levels.${level}.earned`]: FieldValue.increment(commission),
+        referralStats: stats,
       });
 
       tx.set(referrerRef.collection("transactions").doc(), {
@@ -65,14 +87,21 @@ export async function applyReferralCommissions(
       });
     });
 
-    uplineUid = (referrerSnap.data()?.referredBy as string | undefined) ?? null;
+    const uplineSnap = await db.collection("users").doc(referrerUid).get();
+    uplineUid = (uplineSnap.data()?.referredBy as string | undefined) ?? null;
   }
+}
+
+export interface TrackReferralSignupOptions {
+  /** True when the user signed up with a referral code (retry if upline not linked yet). */
+  hadReferralCode?: boolean;
 }
 
 /** Increment member counts up the chain when a new user signs up with a referral. */
 export async function trackReferralSignup(
   db: Firestore,
-  newUserUid: string
+  newUserUid: string,
+  options: TrackReferralSignupOptions = {}
 ) {
   const userRef = db.collection("users").doc(newUserUid);
   const userSnap = await userRef.get();
@@ -80,26 +109,33 @@ export async function trackReferralSignup(
 
   let uplineUid: string | null = userSnap.data()?.referredBy ?? null;
   if (!uplineUid) {
-    await userRef.update({ referralNetworkTracked: true });
+    if (!options.hadReferralCode) {
+      await userRef.update({ referralNetworkTracked: true });
+    }
     return;
   }
 
   for (let level = 0; level < REFERRAL_RATES.length && uplineUid; level++) {
     const referrerUid: string = uplineUid;
     const uplineRef = db.collection("users").doc(referrerUid);
-    const uplineSnap = await uplineRef.get();
-    if (!uplineSnap.exists) break;
 
-    await ensureReferralStatsStructure(db, uplineRef);
+    await db.runTransaction(async (tx) => {
+      const uplineSnap = await tx.get(uplineRef);
+      if (!uplineSnap.exists) return;
 
-    await uplineRef.update({
-      [`referralStats.levels.${level}.members`]: FieldValue.increment(1),
+      const stats = normalizeReferralStats(uplineSnap.data()?.referralStats);
+      stats.levels[level].members += 1;
+      tx.update(uplineRef, { referralStats: stats });
     });
 
+    const uplineSnap = await db.collection("users").doc(referrerUid).get();
     uplineUid = (uplineSnap.data()?.referredBy as string | undefined) ?? null;
   }
 
-  await userRef.update({ referralNetworkTracked: true });
+  await userRef.update({
+    referralNetworkTracked: true,
+    signupReferralCode: FieldValue.delete(),
+  });
 }
 
 export function defaultReferralStatsForNewUser() {

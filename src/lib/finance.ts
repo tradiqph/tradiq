@@ -1,4 +1,9 @@
 export const DAILY_BOT_RATE = 0.03;
+
+/**
+ * One-time commission on bot subscription amount only.
+ * Uplines do NOT share the investor's daily bot earnings or principal returns.
+ */
 export const REFERRAL_RATES = [0.15, 0.03, 0.02, 0.01, 0.01] as const;
 export const REFERRAL_SUBSCRIPTION_TIERS = [500, 1000, 5000] as const;
 export const DEPOSIT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;

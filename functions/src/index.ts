@@ -157,6 +157,7 @@ function isDueForAccrual(
   return now.getTime() - anchor.getTime() >= MS_PER_DAY;
 }
 
+/** Daily accrual — credits the bot owner only; uplines earn nothing from this. */
 export const dailyBotEarnings = onSchedule(
   {
     schedule: "0 0 * * *",

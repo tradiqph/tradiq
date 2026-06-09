@@ -58,6 +58,7 @@ service cloud.firestore {
         'referralCode',
         'referralStats',
         'referralNetworkTracked',
+        'signupReferralCode',
       ];
     }
 

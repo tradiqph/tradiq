@@ -49,7 +49,8 @@ export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
         <div className="border-b border-white/5 px-4 py-3">
           <p className="text-sm font-semibold text-white">Level summary</p>
           <p className="text-xs text-zinc-500">
-            Commissions apply on bot investments only — not deposits
+            One-time commission when a referral subscribes to a bot — not
+            deposits or their daily bot earnings
           </p>
         </div>
 
@@ -66,7 +67,7 @@ export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
                       {level.label}
                     </p>
                     <p className="text-[10px] text-zinc-500">
-                      {level.percent}% per bot investment
+                      {level.percent}% one-time at bot subscription
                     </p>
                   </div>
                 </div>
@@ -82,7 +83,7 @@ export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
                   <p className="font-semibold text-white">{level.members}</p>
                 </div>
                 <div className="rounded-lg bg-black/40 px-2 py-1.5">
-                  <p className="text-zinc-500">Invested</p>
+                  <p className="text-zinc-500">Bot subs</p>
                   <p className="font-semibold text-white">
                     {formatPeso(level.invested)}
                   </p>
@@ -103,7 +104,7 @@ export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
               <p className="font-bold text-white">{totals.totalMembers}</p>
             </div>
             <div>
-              <p className="text-zinc-500">Invested</p>
+              <p className="text-zinc-500">Bot subs</p>
               <p className="font-bold text-white">
                 {formatPeso(totals.totalInvested)}
               </p>

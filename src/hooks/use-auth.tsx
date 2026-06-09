@@ -80,10 +80,10 @@ async function ensureUserProfile(
 async function trackReferralSignupOnServer(
   user: User,
   referralCode?: string
-) {
+): Promise<boolean> {
   try {
     const token = await user.getIdToken();
-    await fetch("/api/referral/on-signup", {
+    const res = await fetch("/api/referral/on-signup", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -93,8 +93,9 @@ async function trackReferralSignupOnServer(
         referralCode: referralCode?.trim().toUpperCase() || undefined,
       }),
     });
+    return res.ok;
   } catch {
-    // Non-blocking — stats update can be retried on next login if needed
+    return false;
   }
 }
 
@@ -121,8 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (snap.exists()) {
           const data = snap.data() as UserProfile;
           setProfile(data);
-          if (!data.referralNetworkTracked) {
-            await trackReferralSignupOnServer(firebaseUser);
+          if (
+            !data.referralNetworkTracked ||
+            (data.signupReferralCode && !data.referredBy)
+          ) {
+            await trackReferralSignupOnServer(
+              firebaseUser,
+              data.signupReferralCode
+            );
             const refreshed = await getDoc(doc(db, "users", firebaseUser.uid));
             if (refreshed.exists()) {
               setProfile(refreshed.data() as UserProfile);

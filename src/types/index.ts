@@ -19,6 +19,8 @@ export interface UserProfile {
   role: UserRole;
   referralStats: ReferralStats;
   referralNetworkTracked?: boolean;
+  /** Server-stored code for retry until referredBy is linked */
+  signupReferralCode?: string;
 }
 
 export type TransactionType =
