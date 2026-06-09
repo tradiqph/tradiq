@@ -47,3 +47,22 @@ export function getReferralRewardExamples() {
 export function calculateDailyEarning(botAmount: number): number {
   return Math.round(botAmount * DAILY_BOT_RATE * 100) / 100;
 }
+
+export const BOT_TERM_DAYS = 30;
+
+export function calculateBotTermProjection(amount: number) {
+  const dailyEarning = calculateDailyEarning(amount);
+  const totalInterest =
+    Math.round(dailyEarning * BOT_TERM_DAYS * 100) / 100;
+  const totalReturn = Math.round((amount + totalInterest) * 100) / 100;
+  const returnPercent = Math.round(DAILY_BOT_RATE * BOT_TERM_DAYS * 100);
+
+  return {
+    dailyEarning,
+    totalInterest,
+    totalReturn,
+    principal: amount,
+    termDays: BOT_TERM_DAYS,
+    returnPercent,
+  };
+}
