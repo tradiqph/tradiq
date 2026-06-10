@@ -101,6 +101,51 @@ export function getMaturityAt(bot: BotInvestmentData): Date | null {
   return new Date(anchor.getTime() + payoutsRemaining * MS_PER_DAY);
 }
 
+export interface ScheduledPayout {
+  dateKey: string;
+  interest: number;
+  principal: number;
+}
+
+export function getRemainingScheduledPayouts(
+  bot: BotInvestmentData,
+  windowStartKey: string,
+  windowEndKey: string,
+  dateKeyFn: (d: Date) => string
+): ScheduledPayout[] {
+  if (bot.status !== "active") return [];
+
+  const remaining = daysRemaining(bot);
+  if (remaining === 0) return [];
+
+  const due = dailyPayout(bot.amount, bot.dailyRate ?? DAILY_BOT_RATE);
+  let payoutDate = getNextPayoutAt(bot);
+
+  if (!payoutDate) {
+    const subscribedAt = toDate(bot.subscribedAt);
+    if (!subscribedAt) return [];
+    const lastAccruedAt = toDate(bot.lastAccruedAt);
+    const anchor = lastAccruedAt ?? subscribedAt;
+    payoutDate = new Date(anchor.getTime() + MS_PER_DAY);
+  }
+
+  const results: ScheduledPayout[] = [];
+  for (let i = 0; i < remaining; i++) {
+    const dateKey = dateKeyFn(payoutDate);
+    if (dateKey >= windowStartKey && dateKey <= windowEndKey) {
+      const isMaturity = i === remaining - 1;
+      results.push({
+        dateKey,
+        interest: due,
+        principal: isMaturity ? bot.amount : 0,
+      });
+    }
+    payoutDate = new Date(payoutDate.getTime() + MS_PER_DAY);
+  }
+
+  return results;
+}
+
 export interface ConsoleInvestmentUserMeta {
   email?: string;
   displayName?: string;

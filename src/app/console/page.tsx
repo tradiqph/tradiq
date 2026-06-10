@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ConsoleError } from "@/components/console/console-error";
+import { LiabilityCalendar } from "@/components/console/liability-calendar";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
@@ -24,6 +25,9 @@ interface ConsoleStats {
   totalDeposit: number;
   totalDeposited: number;
   totalWithdrawn: number;
+  investmentCapital: number;
+  totalUnpaidCommissionLiability: number;
+  safeMoneyToUse: number;
 }
 
 export default function ConsoleDashboardPage() {
@@ -73,6 +77,11 @@ export default function ConsoleDashboardPage() {
           label="Pending withdrawal requests"
           value={String(data.pendingWithdrawals)}
           sub={formatPeso(data.pendingWithdrawalAmount)}
+        />
+        <StatCard
+          label="Safe Money To Use"
+          value={formatPeso(data.safeMoneyToUse)}
+          sub={`${formatPeso(data.investmentCapital)} capital − ${formatPeso(data.totalUnpaidCommissionLiability)} commission reserved`}
         />
         <StatCard label="Total members" value={String(data.totalMembers)} />
         <StatCard
@@ -144,6 +153,8 @@ export default function ConsoleDashboardPage() {
           <ArrowRight className="h-4 w-4 text-zinc-600" />
         </Link>
       </div>
+
+      <LiabilityCalendar />
     </div>
   );
 }

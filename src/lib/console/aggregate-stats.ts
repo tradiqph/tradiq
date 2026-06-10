@@ -5,34 +5,9 @@ import {
   getReferralTotals,
   normalizeReferralStats,
 } from "@/lib/referral-stats";
+import { totalSubscriptionCommissionLiability } from "@/lib/finance";
 import { isSuperAdminRole } from "@/lib/roles";
-
-const MANILA_TZ = "Asia/Manila";
-
-function manilaDateKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: MANILA_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-function isManilaToday(value: unknown): boolean {
-  if (!value) return false;
-
-  let date: Date | null = null;
-  if (value instanceof Date) {
-    date = value;
-  } else if (typeof (value as { toDate?: () => Date }).toDate === "function") {
-    date = (value as { toDate: () => Date }).toDate();
-  } else if (typeof (value as { seconds?: number }).seconds === "number") {
-    date = new Date((value as { seconds: number }).seconds * 1000);
-  }
-
-  if (!date || Number.isNaN(date.getTime())) return false;
-  return manilaDateKey(date) === manilaDateKey(new Date());
-}
+import { isManilaToday } from "@/lib/manila-time";
 
 export async function aggregateConsoleStats(db: Firestore) {
   const usersSnap = await db.collection("users").get();
@@ -99,12 +74,16 @@ export async function aggregateConsoleStats(db: Firestore) {
   const activeBots = allBots.filter(({ data }) => data.status === "active");
 
   let activePrincipal = 0;
+  let totalUnpaidCommissionLiability = 0;
   let todayLiability = 0;
   let dueTodayCount = 0;
   let completingTodayCount = 0;
 
   for (const { userId, botId, data: bot } of activeBots) {
     activePrincipal += bot.amount ?? 0;
+    totalUnpaidCommissionLiability += totalSubscriptionCommissionLiability(
+      bot.amount ?? 0
+    );
 
     const enriched = enrichBotInvestment(bot, userId, botId);
 
@@ -117,6 +96,14 @@ export async function aggregateConsoleStats(db: Firestore) {
     }
   }
 
+  const investmentCapital = Math.round(activePrincipal * 100) / 100;
+  const roundedCommissionLiability =
+    Math.round(totalUnpaidCommissionLiability * 100) / 100;
+  const safeMoneyToUse = Math.max(
+    0,
+    Math.round((investmentCapital - roundedCommissionLiability) * 100) / 100
+  );
+
   return {
     totalMembers,
     membersRegisteredToday,
@@ -126,7 +113,10 @@ export async function aggregateConsoleStats(db: Firestore) {
     pendingWithdrawals,
     pendingWithdrawalAmount: Math.round(pendingWithdrawalAmount * 100) / 100,
     activeInvestments: activeBots.length,
-    activePrincipal: Math.round(activePrincipal * 100) / 100,
+    activePrincipal: investmentCapital,
+    investmentCapital,
+    totalUnpaidCommissionLiability: roundedCommissionLiability,
+    safeMoneyToUse,
     todayPayoutLiability: Math.round(todayLiability * 100) / 100,
     dueTodayCount,
     completingTodayCount,

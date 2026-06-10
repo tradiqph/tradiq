@@ -29,6 +29,10 @@ export function calculateReferralCommissions(amount: number): number[] {
   return REFERRAL_RATES.map((rate) => Math.round(amount * rate * 100) / 100);
 }
 
+export function totalSubscriptionCommissionLiability(amount: number): number {
+  return calculateReferralCommissions(amount).reduce((s, c) => s + c, 0);
+}
+
 export const REFERRAL_LEVEL_LABELS = [
   "Direct Referral",
   "Level 2 Referral",
