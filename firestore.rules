@@ -85,7 +85,7 @@ service cloud.firestore {
         && clientWithdrawalEnabled()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletBalance'])
         && request.resource.data.walletBalance < resource.data.walletBalance
-        && resource.data.walletBalance - request.resource.data.walletBalance >= 300
+        && resource.data.walletBalance - request.resource.data.walletBalance >= 30
         && resource.data.walletBalance - request.resource.data.walletBalance <= 10000;
 
       match /transactions/{txId} {
@@ -94,7 +94,7 @@ service cloud.firestore {
           && request.resource.data.type == 'deposit'
           && request.resource.data.status == 'pending'
           && request.resource.data.amount is number
-          && request.resource.data.amount >= 100
+          && request.resource.data.amount >= 30
           && request.resource.data.amount <= 10000;
         allow create: if isOwner(userId)
           && clientBotSubscribeEnabled()
@@ -108,7 +108,7 @@ service cloud.firestore {
           && request.resource.data.type == 'withdrawal'
           && request.resource.data.status == 'pending'
           && request.resource.data.amount is number
-          && request.resource.data.amount >= 300
+          && request.resource.data.amount >= 30
           && request.resource.data.amount <= 10000;
         allow update: if isOwner(userId)
           && testDepositFulfillmentEnabled()
@@ -148,7 +148,7 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.amount is number
-        && request.resource.data.amount >= 300
+        && request.resource.data.amount >= 30
         && request.resource.data.amount <= 10000
         && request.resource.data.processingFee is number
         && request.resource.data.netPayout is number
@@ -162,7 +162,7 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.amount is number
-        && request.resource.data.amount >= 100
+        && request.resource.data.amount >= 30
         && request.resource.data.amount <= 10000
         && request.resource.data.paymongoIntentId is string
         && request.resource.data.qrImageUrl is string;

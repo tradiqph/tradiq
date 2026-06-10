@@ -1,4 +1,4 @@
-export const PRODUCTION_APP_URL = "https://tradiq-rose.vercel.app";
+export const PRODUCTION_APP_URL = "https://www.tradiq.biz";
 
 /** Strip trailing slash from a base URL. */
 function normalizeBaseUrl(url: string): string {
@@ -6,8 +6,20 @@ function normalizeBaseUrl(url: string): string {
 }
 
 /**
- * Resolves the public app base URL for share links (referrals, etc.).
- * In the browser, always uses the current origin so links match the deployed domain.
+ * Canonical URL for referral share links — always the live site,
+ * regardless of whether the user is on localhost or a preview deploy.
+ */
+export function getReferralBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured && !configured.includes("localhost")) {
+    return normalizeBaseUrl(configured);
+  }
+  return PRODUCTION_APP_URL;
+}
+
+/**
+ * Resolves the public app base URL for general use (redirects, etc.).
+ * In the browser, uses the current origin so dev/preview stay on the same host.
  */
 export function getAppBaseUrl(): string {
   if (typeof window !== "undefined") {
@@ -33,5 +45,5 @@ export function getAppBaseUrl(): string {
 export function buildReferralLink(referralCode: string): string {
   if (!referralCode) return "";
   const code = encodeURIComponent(referralCode);
-  return `${getAppBaseUrl()}/register?ref=${code}`;
+  return `${getReferralBaseUrl()}/register?ref=${code}`;
 }

@@ -145,7 +145,7 @@ const PLATFORM_CONFIG = {
   depositPresets: [500, 1000, 3000, 5000, 10000],
   botPresets: [500, 1000, 3000, 5000, 10000],
   currency: "PHP",
-  minDeposit: 100,
+  minDeposit: 30,
   maxWithdrawalAccounts: 3,
   smartWalletEngine: {
     walletCount: 4,

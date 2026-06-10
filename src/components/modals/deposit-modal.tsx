@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoldButton } from "@/components/ui/gold-button";
-import { DEPOSIT_PRESETS } from "@/lib/finance";
+import { DEPOSIT_MIN_AMOUNT, DEPOSIT_PRESETS } from "@/lib/finance";
 import {
   fulfillDepositOnClient,
   persistDepositOnClient,
@@ -154,8 +154,8 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
 
   const handleCreate = async () => {
     const num = parseFloat(amount);
-    if (!num || num < 100) {
-      toast.error("Minimum deposit is ₱100");
+    if (!num || num < DEPOSIT_MIN_AMOUNT) {
+      toast.error(`Minimum deposit is ₱${DEPOSIT_MIN_AMOUNT}`);
       return;
     }
     if (!user) return;
