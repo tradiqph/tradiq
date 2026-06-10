@@ -47,3 +47,13 @@ export function buildReferralLink(referralCode: string): string {
   const code = encodeURIComponent(referralCode);
   return `${getReferralBaseUrl()}/register?ref=${code}`;
 }
+
+/**
+ * Firebase action links (password reset, etc.) require an authorized domain.
+ * Localhost is often not allowlisted, so use the live site when developing locally.
+ */
+export function getAuthActionContinueUrl(path = "/login"): string {
+  const base = getReferralBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}

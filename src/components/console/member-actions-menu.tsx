@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Key, Lock, MoreHorizontal, Trash2 } from "lucide-react";
+import { Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +37,7 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -136,10 +138,6 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
     }
   };
 
-  if (isProtected) {
-    return <span className="text-xs text-zinc-600">—</span>;
-  }
-
   return (
     <>
       <DropdownMenu>
@@ -150,6 +148,15 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
           <MoreHorizontal className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44 bg-zinc-950">
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setNetworkOpen(true)}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Network
+          </DropdownMenuItem>
+          {!isProtected && (
+            <>
           <DropdownMenuItem
             className="cursor-pointer"
             onClick={() => setPasswordOpen(true)}
@@ -171,8 +178,16 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <Trash2 className="mr-2 h-4 w-4" />
             Delete member
           </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <MemberNetworkSheet
+        open={networkOpen}
+        onOpenChange={setNetworkOpen}
+        member={member}
+      />
 
       <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
         <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">

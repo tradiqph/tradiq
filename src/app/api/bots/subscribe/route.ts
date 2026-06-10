@@ -5,6 +5,7 @@ import { validateBotSubscribeAmount, DAILY_BOT_RATE } from "@/lib/finance";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { BOT_TERM_DAYS } from "@/lib/investments";
 import { applyReferralCommissions } from "@/lib/referral-payout";
+import { sendBotInvestmentAlert } from "@/lib/email/send";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
 import { isProduction } from "@/lib/security/env";
 
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let newBotId: string | null = null;
+
   try {
     await db.runTransaction(async (tx) => {
       const freshUser = await tx.get(userRef);
@@ -67,6 +70,7 @@ export async function POST(request: NextRequest) {
       });
 
       const botRef = userRef.collection("bots").doc();
+      newBotId = botRef.id;
       tx.set(botRef, {
         amount,
         status: "active",
@@ -90,6 +94,29 @@ export async function POST(request: NextRequest) {
     });
 
     await applyReferralCommissions(db, decoded.uid, amount);
+
+    const activeBotsSnap = await userRef
+      .collection("bots")
+      .where("status", "==", "active")
+      .get();
+
+    void sendBotInvestmentAlert({
+      db,
+      memberId: decoded.uid,
+      memberName:
+        (userData.displayName as string | undefined)?.trim() ||
+        userData.email ||
+        "Member",
+      memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
+      amount,
+      investedAt: new Date(),
+      botId: newBotId ?? undefined,
+      activeBotCount: activeBotsSnap.size,
+    }).then((result) => {
+      if (!result.ok) {
+        console.warn("[bots/subscribe] admin notification not sent:", result.error);
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (e) {
