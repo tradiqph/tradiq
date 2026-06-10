@@ -108,4 +108,6 @@ export interface BotCatalogItem {
   walletAddress: string;
   weeklyPnl: string;
   lastSignal: string;
+  /** Public Binance Copy Trading lead profile (30D track record). */
+  binanceLeadUrl?: string;
 }

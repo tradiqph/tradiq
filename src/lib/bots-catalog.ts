@@ -1,5 +1,18 @@
 import { BotCatalogItem } from "@/types";
 
+export const BINANCE_COPY_TRADING_LEAD_BASE =
+  "https://www.binance.com/en-PH/copy-trading/lead-details";
+
+/** Vertex Flow — verified Binance copy-trading lead (30D performance). */
+export const VERTEX_FLOW_BINANCE_LEAD_URL = `${BINANCE_COPY_TRADING_LEAD_BASE}/4920419848544780801?timeRange=30D`;
+
+export function binanceLeadProfileUrl(
+  leadId: string,
+  timeRange: "7D" | "30D" | "90D" | "1Y" = "30D"
+): string {
+  return `${BINANCE_COPY_TRADING_LEAD_BASE}/${leadId}?timeRange=${timeRange}`;
+}
+
 export const BOTS_CATALOG_SEED: (BotCatalogItem & { id: string })[] = [
   {
     id: "aurum-pulse",
@@ -72,6 +85,7 @@ export const BOTS_CATALOG_SEED: (BotCatalogItem & { id: string })[] = [
     walletAddress: "HN7cABqLq46Es1jh92dQQisAq662SmxAU7gSWZDZg5Jk",
     weeklyPnl: "+$178K",
     lastSignal: "Just now",
+    binanceLeadUrl: VERTEX_FLOW_BINANCE_LEAD_URL,
   },
 ];
 

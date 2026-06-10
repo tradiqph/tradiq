@@ -114,11 +114,26 @@ export function BotTrackRecordSheet({
           </div>
         </div>
 
+        {bot.binanceLeadUrl ? (
+          <a
+            href={bot.binanceLeadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-3 text-sm font-medium text-amber-300 hover:bg-amber-500/15 hover:text-amber-200 cursor-pointer"
+          >
+            View on Binance Copy Trading
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+
         <a
           href={solscanAccountUrl(bot.walletAddress)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-black/40 py-3 text-sm text-zinc-300 hover:text-white cursor-pointer"
+          className={cn(
+            "flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-black/40 py-3 text-sm text-zinc-300 hover:text-white cursor-pointer",
+            bot.binanceLeadUrl ? "mt-2" : "mt-4"
+          )}
         >
           Verify on Solscan
           <ExternalLink className="h-3.5 w-3.5" />

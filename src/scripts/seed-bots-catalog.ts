@@ -2,18 +2,37 @@
  * Run after Firebase is configured:
  * npx tsx src/scripts/seed-bots-catalog.ts
  */
-import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+import { initializeApp, cert, getApps, type ServiceAccount } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { BOTS_CATALOG_SEED } from "../lib/bots-catalog";
 
-const serviceAccount = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT;
-if (!serviceAccount) {
-  console.error("Set FIREBASE_ADMIN_SERVICE_ACCOUNT env var");
+function loadServiceAccount(): ServiceAccount {
+  const candidates = [
+    process.env.FIREBASE_ADMIN_CREDENTIALS_PATH,
+    join(process.cwd(), "firebase-service-account.json"),
+    join(process.cwd(), "service-account.json"),
+  ].filter((p): p is string => Boolean(p));
+
+  for (const filePath of candidates) {
+    if (!existsSync(filePath)) continue;
+    return JSON.parse(readFileSync(filePath, "utf8")) as ServiceAccount;
+  }
+
+  const raw = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT?.trim();
+  if (raw && raw.length > 20) {
+    return JSON.parse(raw) as ServiceAccount;
+  }
+
+  console.error(
+    "Missing credentials. Add firebase-service-account.json or FIREBASE_ADMIN_SERVICE_ACCOUNT."
+  );
   process.exit(1);
 }
 
 if (!getApps().length) {
-  initializeApp({ credential: cert(JSON.parse(serviceAccount)) });
+  initializeApp({ credential: cert(loadServiceAccount()) });
 }
 
 const db = getFirestore();

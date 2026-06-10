@@ -3,7 +3,7 @@
  *
  * Prerequisites:
  * 1. Firestore database created (billing enabled on GCP project)
- * 2. FIREBASE_ADMIN_SERVICE_ACCOUNT set in .env.local OR `firebase login` + ADC
+ * 2. firebase-service-account.json in project root, FIREBASE_ADMIN_SERVICE_ACCOUNT in .env.local, or ADC
  *
  * Run: npm run seed:firestore
  */
@@ -34,25 +34,38 @@ function loadEnv() {
 const env = loadEnv();
 const projectId = env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "tradiq-f4962";
 
+function loadServiceAccount() {
+  const jsonPath = resolve(root, "firebase-service-account.json");
+  if (existsSync(jsonPath)) {
+    return JSON.parse(readFileSync(jsonPath, "utf8"));
+  }
+
+  const altPath = resolve(root, "service-account.json");
+  if (existsSync(altPath)) {
+    return JSON.parse(readFileSync(altPath, "utf8"));
+  }
+
+  const raw = env.FIREBASE_ADMIN_SERVICE_ACCOUNT?.trim();
+  if (raw && raw.length > 20) {
+    return JSON.parse(raw);
+  }
+
+  throw new Error(
+    "Missing Firebase Admin credentials.\n\n" +
+      "Fix (pick one):\n" +
+      "1. Place firebase-service-account.json in the project root (recommended), or\n" +
+      "2. Set FIREBASE_ADMIN_SERVICE_ACCOUNT in .env.local as a one-line JSON string, or\n" +
+      "3. Run: npx firebase login && set GOOGLE_APPLICATION_CREDENTIALS to the key file path."
+  );
+}
+
 function initAdmin() {
   if (getApps().length) return getFirestore();
 
-  const raw = env.FIREBASE_ADMIN_SERVICE_ACCOUNT?.trim();
-  if (!raw) {
-    throw new Error(
-      "FIREBASE_ADMIN_SERVICE_ACCOUNT is missing in .env.local.\n\n" +
-        "Fix:\n" +
-        "1. Firebase Console → Project Settings → Service accounts\n" +
-        "2. Click 'Generate new private key'\n" +
-        "3. Paste the entire JSON as one line in .env.local:\n" +
-        '   FIREBASE_ADMIN_SERVICE_ACCOUNT={"type":"service_account",...}\n\n' +
-        "Or run: npx firebase login && set GOOGLE_APPLICATION_CREDENTIALS to the key file path."
-    );
-  }
-
+  const serviceAccount = loadServiceAccount();
   initializeApp({
-    credential: cert(JSON.parse(raw)),
-    projectId,
+    credential: cert(serviceAccount),
+    projectId: serviceAccount.project_id || projectId,
   });
   return getFirestore();
 }
@@ -136,6 +149,8 @@ const BOTS_CATALOG = [
     walletAddress: "HN7cABqLq46Es1jh92dQQisAq662SmxAU7gSWZDZg5Jk",
     weeklyPnl: "+$178K",
     lastSignal: "Just now",
+    binanceLeadUrl:
+      "https://www.binance.com/en-PH/copy-trading/lead-details/4920419848544780801?timeRange=30D",
   },
 ];
 
