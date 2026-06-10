@@ -41,7 +41,14 @@ export default function DashboardPage() {
       <WalletCarousel profile={profile} />
       {!loading && <RecentTransactions transactions={transactions} />}
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} />
-      <WithdrawModal open={withdrawOpen} onOpenChange={setWithdrawOpen} />
+      <WithdrawModal
+        open={withdrawOpen}
+        onOpenChange={setWithdrawOpen}
+        onOpenDeposit={() => {
+          setWithdrawOpen(false);
+          setDepositOpen(true);
+        }}
+      />
     </>
   );
 }

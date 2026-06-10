@@ -5,6 +5,9 @@ export const RESEND_FROM_EMAIL =
 
 export const RESEND_FROM_NAME = "TradIQ";
 
+/** Default inbox for bot investment and withdrawal admin alerts. */
+export const DEFAULT_ADMIN_NOTIFICATION_EMAIL = "tradiqph@gmail.com";
+
 export function getResendFromAddress(): string {
   return `${RESEND_FROM_NAME} <${RESEND_FROM_EMAIL}>`;
 }
@@ -31,27 +34,11 @@ function parseAdminEmailsFromEnv(): string[] {
   ];
 }
 
-/** Recipients for internal alerts (bot investments, etc.). */
+/** Recipients for internal alerts (bot investments, withdrawals, etc.). */
 export async function getAdminNotificationRecipients(
-  db: Firestore | null
+  _db: Firestore | null
 ): Promise<string[]> {
   const fromEnv = parseAdminEmailsFromEnv();
   if (fromEnv.length > 0) return fromEnv;
-
-  if (!db) return [];
-
-  const snap = await db
-    .collection("users")
-    .where("role", "==", "super_admin")
-    .get();
-
-  const emails = snap.docs
-    .map((doc) => doc.data().email)
-    .filter(
-      (email): email is string =>
-        typeof email === "string" && email.includes("@")
-    )
-    .map((email) => email.trim().toLowerCase());
-
-  return [...new Set(emails)];
+  return [DEFAULT_ADMIN_NOTIFICATION_EMAIL];
 }

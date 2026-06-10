@@ -8,6 +8,8 @@ import {
 } from "@/lib/email/config";
 import { buildPasswordResetEmail } from "@/lib/email/templates/password-reset";
 import { buildBotInvestmentAlertEmail } from "@/lib/email/templates/bot-investment";
+import { buildWithdrawalRequestAlertEmail } from "@/lib/email/templates/withdrawal-request";
+import type { WithdrawalAccount } from "@/types";
 
 let resendClient: Resend | null = null;
 
@@ -132,6 +134,59 @@ export async function sendBotInvestmentAlert(params: {
     tags: [
       { name: "category", value: "bot_investment" },
       { name: "member_id", value: params.memberId },
+    ],
+  });
+}
+
+export async function sendWithdrawalRequestAlert(params: {
+  db: Firestore | null;
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  requestId: string;
+  amount: number;
+  processingFee: number;
+  netPayout: number;
+  requestedAt: Date;
+  account: WithdrawalAccount;
+}): Promise<SendEmailResult> {
+  if (!isResendConfigured()) {
+    return { ok: false, error: "Email not configured" };
+  }
+
+  const recipients = await getAdminNotificationRecipients(params.db);
+  if (recipients.length === 0) {
+    console.warn("[email] No admin notification recipients configured");
+    return { ok: false, error: "No notification recipients" };
+  }
+
+  const requestedAtLabel = params.requestedAt.toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  const content = buildWithdrawalRequestAlertEmail({
+    memberId: params.memberId,
+    memberName: params.memberName,
+    memberEmail: params.memberEmail,
+    requestId: params.requestId,
+    amount: params.amount,
+    processingFee: params.processingFee,
+    netPayout: params.netPayout,
+    requestedAt: requestedAtLabel,
+    account: params.account,
+  });
+
+  return sendEmail({
+    to: recipients,
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    tags: [
+      { name: "category", value: "withdrawal_request" },
+      { name: "member_id", value: params.memberId },
+      { name: "request_id", value: params.requestId },
     ],
   });
 }

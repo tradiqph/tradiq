@@ -14,6 +14,7 @@ import {
   WITHDRAWAL_PROCESSING_FEE_RATE,
 } from "@/lib/finance";
 import { WithdrawalAccount } from "@/types";
+import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
 
 async function clientWithdrawalEnabled() {
   const firestore = db;
@@ -68,7 +69,11 @@ export async function createWithdrawalOnClient({
     const userSnap = await tx.get(userRef);
     if (!userSnap.exists()) throw new Error("User not found");
 
-    const balance = userSnap.data()?.walletBalance ?? 0;
+    const userData = userSnap.data()!;
+    const depositGateMessage = getWithdrawalDepositGateMessage(userData);
+    if (depositGateMessage) throw new Error(depositGateMessage);
+
+    const balance = userData.walletBalance ?? 0;
     if (balance < amount) throw new Error("Insufficient wallet balance");
 
     tx.update(userRef, {

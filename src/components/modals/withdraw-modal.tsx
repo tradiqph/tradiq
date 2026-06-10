@@ -29,13 +29,19 @@ import { createWithdrawalOnClient } from "@/lib/withdrawals";
 import { maskAccountNumber } from "@/lib/withdrawal-accounts";
 import { WithdrawalAccount } from "@/types";
 import { cn } from "@/lib/utils";
+import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
 
 interface WithdrawModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenDeposit?: () => void;
 }
 
-export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
+export function WithdrawModal({
+  open,
+  onOpenChange,
+  onOpenDeposit,
+}: WithdrawModalProps) {
   const { user, profile, pinSet, refreshProfile, refreshPinStatus } = useAuth();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
@@ -70,9 +76,12 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
 
   const amountError = num > 0 ? validateWithdrawalAmount(num) : null;
   const exceedsBalance = num > walletBalance;
+  const depositGateMessage = profile
+    ? getWithdrawalDepositGateMessage(profile)
+    : null;
 
   const handleSubmit = async () => {
-    if (!user || amountError || exceedsBalance) return;
+    if (!user || amountError || exceedsBalance || depositGateMessage) return;
     if (!selectedAccount || !selected) {
       toast.error("Add a withdrawal account first");
       return;
@@ -147,6 +156,30 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           </p>
           <PesoAmount amount={walletBalance} gold className="text-2xl" />
         </div>
+
+        {depositGateMessage ? (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-3">
+            <p className="text-sm font-medium text-white">Deposit required</p>
+            <p className="mt-1 text-xs text-zinc-500">{depositGateMessage}</p>
+            {onOpenDeposit ? (
+              <button
+                type="button"
+                onClick={onOpenDeposit}
+                className="mt-2 text-sm text-amber-400 hover:underline cursor-pointer"
+              >
+                Make a deposit →
+              </button>
+            ) : (
+              <Link
+                href="/home"
+                onClick={() => onOpenChange(false)}
+                className="mt-2 inline-block text-sm text-amber-400 hover:underline"
+              >
+                Go to Home to deposit →
+              </Link>
+            )}
+          </div>
+        ) : null}
 
         {accounts.length > 0 ? (
           <div className="space-y-2">
@@ -314,6 +347,7 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           onClick={handleSubmit}
           disabled={
             loading ||
+            Boolean(depositGateMessage) ||
             !hasPin ||
             num <= 0 ||
             Boolean(amountError) ||

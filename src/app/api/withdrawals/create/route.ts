@@ -15,6 +15,10 @@ import {
   getClientIp,
 } from "@/lib/security/rate-limit";
 import { pinSchema } from "@/lib/security/validation";
+import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
+import { normalizeReferralStats } from "@/lib/referral-stats";
+import { sendWithdrawalRequestAlert } from "@/lib/email/send";
+import type { WithdrawalAccount } from "@/types";
 
 export async function POST(request: NextRequest) {
   const decoded = await verifyAuthToken(request);
@@ -76,6 +80,17 @@ export async function POST(request: NextRequest) {
   }
 
   const userData = userSnap.data()!;
+
+  const depositGateMessage = getWithdrawalDepositGateMessage(userData);
+  if (depositGateMessage) {
+    const referralEarned = normalizeReferralStats(
+      userData.referralStats
+    ).totalEarned;
+    console.info(
+      `[withdrawals/create] deposit gate uid=${decoded.uid} referralEarned=${referralEarned}`
+    );
+    return NextResponse.json({ error: depositGateMessage }, { status: 403 });
+  }
 
   if (userData.securityPinHash) {
     const pinParsed = pinSchema.safeParse(payload.pin);
@@ -154,6 +169,31 @@ export async function POST(request: NextRequest) {
         },
         createdAt: FieldValue.serverTimestamp(),
       });
+    });
+
+    const accountSnapshot = accountSnap.data() as WithdrawalAccount;
+
+    void sendWithdrawalRequestAlert({
+      db,
+      memberId: decoded.uid,
+      memberName:
+        (userData.displayName as string | undefined)?.trim() ||
+        userData.email ||
+        "Member",
+      memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
+      requestId: requestRef.id,
+      amount: num,
+      processingFee,
+      netPayout,
+      requestedAt: new Date(),
+      account: accountSnapshot,
+    }).then((result) => {
+      if (!result.ok) {
+        console.warn(
+          "[withdrawals/create] admin notification not sent:",
+          result.error
+        );
+      }
     });
 
     return NextResponse.json({

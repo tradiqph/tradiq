@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Trophy, Headphones } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { GoldButton } from "@/components/ui/gold-button";
-import { ActionChip } from "@/components/ui/action-chip";
 
 interface QuickActionsProps {
   onDeposit: () => void;
@@ -21,10 +20,6 @@ export function QuickActions({ onDeposit, onWithdraw }: QuickActionsProps) {
           <ArrowUpRight className="mr-2 h-4 w-4" />
           Withdraw
         </GoldButton>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <ActionChip label="Leaderboard" href="/bot" icon={Trophy} />
-        <ActionChip label="Support" href="#" icon={Headphones} />
       </div>
     </div>
   );
