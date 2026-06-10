@@ -6,7 +6,7 @@ export const DAILY_BOT_RATE = 0.03;
  */
 export const REFERRAL_RATES = [0.15, 0.03, 0.02, 0.01, 0.01] as const;
 export const REFERRAL_SUBSCRIPTION_TIERS = [500, 1000, 5000] as const;
-export const DEPOSIT_PRESETS = [30, 500, 1000, 3000, 5000, 10000] as const;
+export const DEPOSIT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;
 export const BOT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;
 
 export function formatPeso(amount: number): string {
@@ -53,11 +53,11 @@ export function calculateDailyEarning(botAmount: number): number {
   return Math.round(botAmount * DAILY_BOT_RATE * 100) / 100;
 }
 
-export const DEPOSIT_MIN_AMOUNT = 30;
+export const DEPOSIT_MIN_AMOUNT = 500;
 export const DEPOSIT_MAX_AMOUNT = 10000;
 export const BOT_MIN_AMOUNT = 1;
 export const BOT_MAX_AMOUNT = 10000;
-export const WITHDRAWAL_MIN_AMOUNT = 30;
+export const WITHDRAWAL_MIN_AMOUNT = 300;
 export const WITHDRAWAL_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_PROCESSING_FEE_RATE = 0.04;
 

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { PwaBootstrap } from "@/components/pwa/pwa-bootstrap";
 import { AuthProvider } from "@/hooks/use-auth";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} dark h-full`}>
       <body className="min-h-full bg-black">
         <AuthProvider>
+          <PwaBootstrap />
           {children}
           <Toaster theme="dark" position="top-center" />
         </AuthProvider>

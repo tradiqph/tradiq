@@ -10,9 +10,12 @@ import {
   Copy,
   Plus,
   Shield,
+  Headphones,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
+import { SupportSheet } from "@/components/account/support-sheet";
 import { AddWithdrawalAccountDialog } from "@/components/account/add-withdrawal-account-dialog";
 import { WithdrawalAccountCard } from "@/components/account/withdrawal-account-card";
 import { GoldButton } from "@/components/ui/gold-button";
@@ -40,6 +43,7 @@ import {
 import { db } from "@/lib/firebase/client";
 import { WithdrawalAccount } from "@/types";
 import { validateWithdrawalAccount, getAccountTypeConfig } from "@/lib/withdrawal-accounts";
+import { isPwaInstalled, promptPwaInstall } from "@/lib/pwa-install";
 import type { WithdrawalAccountFormData } from "@/components/account/add-withdrawal-account-dialog";
 
 function SettingsRow({
@@ -102,6 +106,7 @@ export default function AccountPage() {
   const [pinOpen, setPinOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [pin, setPin] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -262,6 +267,19 @@ export default function AccountPage() {
       setPin("");
     } catch {
       toast.error("Failed to save PIN");
+    }
+  };
+
+  const handleDownloadApp = async () => {
+    const result = await promptPwaInstall();
+    if (result === "accepted") {
+      toast.success("TradIQ installed");
+    } else if (result === "ios") {
+      toast.info("Tap Share, then Add to Home Screen to install TradIQ.");
+    } else if (result === "installed") {
+      toast.success("TradIQ is already installed");
+    } else if (result === "unavailable") {
+      toast.info("Use your browser menu to install this app.");
     }
   };
 
@@ -459,6 +477,28 @@ export default function AccountPage() {
           />
         </div>
 
+        <div className="surface-flat overflow-hidden">
+          <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+            Help
+          </p>
+          <SettingsRow
+            icon={Headphones}
+            title="Support Request"
+            subtitle="Submit a ticket or view open requests"
+            onClick={() => setSupportOpen(true)}
+          />
+        </div>
+
+        {!isPwaInstalled() && (
+          <div className="surface-flat overflow-hidden">
+            <SettingsRow
+              icon={Download}
+              title="Download App"
+              onClick={() => void handleDownloadApp()}
+            />
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => logout()}
@@ -473,6 +513,8 @@ export default function AccountPage() {
         onOpenChange={setSecurityOpen}
         profile={profile}
       />
+
+      <SupportSheet open={supportOpen} onOpenChange={setSupportOpen} />
 
       <AddWithdrawalAccountDialog
         open={addOpen}

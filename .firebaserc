@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "tradiq-f4962"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

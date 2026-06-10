@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
 import { DataTable } from "@/components/console/data-table";
+import { MemberActionsMenu } from "@/components/console/member-actions-menu";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
 import { formatPeso } from "@/lib/finance";
@@ -33,7 +34,7 @@ export default function ConsoleMembersPage() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
 
-  const { data, loading, error } = useConsoleFetch<MembersResponse>(
+  const { data, loading, error, refetch } = useConsoleFetch<MembersResponse>(
     `/api/console/members?search=${encodeURIComponent(query)}&limit=50`,
     [query]
   );
@@ -50,7 +51,7 @@ export default function ConsoleMembersPage() {
         <p className="text-sm text-zinc-500">User roster and balances</p>
       </div>
 
-      <form onSubmit={handleSearch} className="flex gap-2">
+      <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
@@ -82,6 +83,7 @@ export default function ConsoleMembersPage() {
             {
               key: "name",
               header: "Member",
+              primary: true,
               cell: (m) => (
                 <div>
                   <p className="text-white">{m.displayName || "—"}</p>
@@ -129,6 +131,22 @@ export default function ConsoleMembersPage() {
                 m.memberSince
                   ? format(new Date(m.memberSince), "MMM d, yyyy")
                   : "—",
+            },
+            {
+              key: "actions",
+              header: "",
+              hideOnMobile: true,
+              cell: (m) => (
+                <MemberActionsMenu
+                  member={{
+                    id: m.id,
+                    email: m.email,
+                    displayName: m.displayName,
+                    role: m.role,
+                  }}
+                  onUpdated={() => void refetch()}
+                />
+              ),
             },
           ]}
         />

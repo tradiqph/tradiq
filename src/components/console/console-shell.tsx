@@ -2,23 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Wallet,
-  Users,
-  TrendingUp,
-  FileText,
-  ArrowLeft,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { ConsoleBottomNav } from "@/components/console/console-bottom-nav";
+import { consoleNavItems } from "@/lib/console/nav";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/console/withdrawals", label: "Withdrawals", icon: Wallet },
-  { href: "/console/members", label: "Members", icon: Users },
-  { href: "/console/investments", label: "Investments", icon: TrendingUp },
-  { href: "/console/reports", label: "Reports", icon: FileText },
-];
 
 export function ConsoleShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -34,7 +21,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-lg font-bold text-white">Super Admin</h1>
           </div>
           <nav className="space-y-1">
-            {navItems.map(({ href, label, icon: Icon, exact }) => {
+            {consoleNavItems.map(({ href, label, icon: Icon, exact }) => {
               const active = exact
                 ? pathname === href
                 : pathname.startsWith(href);
@@ -64,33 +51,30 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
           </Link>
         </aside>
 
-        <div className="flex-1 overflow-x-hidden">
-          <header className="border-b border-white/5 px-4 py-3 md:hidden">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {navItems.map(({ href, label, exact }) => {
-                const active = exact
-                  ? pathname === href
-                  : pathname.startsWith(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-xs",
-                      active
-                        ? "bg-amber-500/20 text-amber-400"
-                        : "text-zinc-500"
-                    )}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/5 bg-black/90 px-4 py-3 backdrop-blur-md md:hidden">
+            <div>
+              <p className="text-[10px] font-semibold tracking-widest text-amber-400">
+                TRADIQ
+              </p>
+              <p className="text-sm font-bold text-white">Super Admin</p>
             </div>
+            <Link
+              href="/home"
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              App
+            </Link>
           </header>
-          <main className="p-4 md:p-6">{children}</main>
+
+          <main className="flex-1 overflow-x-hidden p-4 pb-24 md:p-6 md:pb-6">
+            {children}
+          </main>
         </div>
       </div>
+
+      <ConsoleBottomNav />
     </div>
   );
 }

@@ -10,12 +10,14 @@ import {
 } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import { getAuth, Auth } from "firebase-admin/auth";
+import { getStorage, Storage } from "firebase-admin/storage";
 
 const ADMIN_APP_NAME = "tradiq-admin";
 
 let adminApp: App | null = null;
 let adminDb: Firestore | null = null;
 let adminAuth: Auth | null = null;
+let adminStorage: Storage | null = null;
 
 function parseServiceAccountJson(raw: string): ServiceAccount | null {
   const trimmed = raw.trim();
@@ -70,6 +72,15 @@ function resolveProjectId(serviceAccount: ServiceAccount | null): string | null 
   return fromEnv || null;
 }
 
+export function resolveStorageBucket(projectId?: string | null): string | null {
+  const fromEnv =
+    process.env.FIREBASE_STORAGE_BUCKET?.trim() ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (fromEnv) return fromEnv;
+  if (projectId) return `${projectId}.firebasestorage.app`;
+  return null;
+}
+
 export function getAdminApp(): App | null {
   if (adminApp) return adminApp;
 
@@ -80,11 +91,14 @@ export function getAdminApp(): App | null {
     return null;
   }
 
+  const storageBucket = resolveStorageBucket(projectId);
+
   try {
     adminApp = initializeApp(
       {
         credential: cert(serviceAccount),
         projectId,
+        ...(storageBucket ? { storageBucket } : {}),
       },
       ADMIN_APP_NAME
     );
@@ -114,4 +128,24 @@ export function getAdminAuth(): Auth | null {
   if (!app) return null;
   adminAuth = getAuth(app);
   return adminAuth;
+}
+
+export function getAdminStorage(): Storage | null {
+  if (adminStorage) return adminStorage;
+  const app = getAdminApp();
+  if (!app) return null;
+  adminStorage = getStorage(app);
+  return adminStorage;
+}
+
+export function getAdminStorageBucket() {
+  const storage = getAdminStorage();
+  if (!storage) return null;
+
+  const bucketName = resolveStorageBucket(
+    resolveProjectId(getServiceAccount())
+  );
+  if (!bucketName) return null;
+
+  return storage.bucket(bucketName);
 }

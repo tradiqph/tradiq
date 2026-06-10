@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:firestore": "node scripts/seed-firestore.mjs",
     "reset:financials": "node scripts/reset-financials.mjs",
-    "firebase:deploy:rules": "npx -y firebase-tools@latest deploy --only firestore"
+    "firebase:deploy:rules": "npx -y firebase-tools@latest deploy --only firestore",
+    "firebase:deploy:support": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes,storage"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

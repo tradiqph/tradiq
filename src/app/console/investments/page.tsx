@@ -134,6 +134,7 @@ function InvestmentsContent() {
             {
               key: "member",
               header: "Member",
+              primary: true,
               cell: (i) => (
                 <div>
                   <p className="text-white">{i.displayName || i.email}</p>
