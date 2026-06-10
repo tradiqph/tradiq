@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getAdminDb();
-  let memberName = decoded.name ?? decoded.email ?? "Member";
+  let memberName = decoded.email ?? "Member";
   let memberEmail = decoded.email ?? "unknown";
 
   if (db) {
