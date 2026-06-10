@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   let newBotId: string | null = null;
+  let activeBotCount: number | undefined;
 
   try {
     await db.runTransaction(async (tx) => {
@@ -95,10 +96,14 @@ export async function POST(request: NextRequest) {
 
     await applyReferralCommissions(db, decoded.uid, amount);
 
-    const activeBotsSnap = await userRef
-      .collection("bots")
-      .where("status", "==", "active")
-      .get();
+    try {
+      const botsSnap = await userRef.collection("bots").get();
+      activeBotCount = botsSnap.docs.filter(
+        (doc) => doc.data().status === "active"
+      ).length;
+    } catch (countErr) {
+      console.warn("[bots/subscribe] active bot count skipped:", countErr);
+    }
 
     void sendBotInvestmentAlert({
       db,
@@ -111,10 +116,13 @@ export async function POST(request: NextRequest) {
       amount,
       investedAt: new Date(),
       botId: newBotId ?? undefined,
-      activeBotCount: activeBotsSnap.size,
+      activeBotCount,
     }).then((result) => {
       if (!result.ok) {
-        console.warn("[bots/subscribe] admin notification not sent:", result.error);
+        console.warn(
+          "[bots/subscribe] admin notification not sent:",
+          result.error
+        );
       }
     });
 
