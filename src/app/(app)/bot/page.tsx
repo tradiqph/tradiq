@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
+import { BotPortfolioSummary } from "@/components/bot/bot-portfolio-summary";
 import { SmartWalletEngine } from "@/components/bot/smart-wallet-engine";
 import { UserBotCard } from "@/components/bot/user-bot-card";
 import { BotCatalogCard } from "@/components/bot/bot-catalog-card";
@@ -47,6 +48,8 @@ export default function BotPage() {
       />
 
       <div className="px-4 pb-4">
+        <BotPortfolioSummary bots={bots} />
+
         <GoldButton
           onClick={() => setSubscribeOpen(true)}
           className="relative mb-4 w-full py-6"

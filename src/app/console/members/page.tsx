@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
 import { DataTable } from "@/components/console/data-table";
 import { MemberActionsMenu } from "@/components/console/member-actions-menu";
+import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
 import { formatPeso } from "@/lib/finance";
@@ -30,6 +31,11 @@ interface MembersResponse {
   hasMore: boolean;
 }
 
+interface MembersSummary {
+  totalDeposited: number;
+  activePrincipal: number;
+}
+
 export default function ConsoleMembersPage() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -37,6 +43,10 @@ export default function ConsoleMembersPage() {
   const { data, loading, error, refetch } = useConsoleFetch<MembersResponse>(
     `/api/console/members?search=${encodeURIComponent(query)}&limit=50`,
     [query]
+  );
+
+  const { data: summary } = useConsoleFetch<MembersSummary>(
+    "/api/console/stats"
   );
 
   const handleSearch = (e: React.FormEvent) => {
@@ -49,6 +59,19 @@ export default function ConsoleMembersPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Members</h1>
         <p className="text-sm text-zinc-500">User roster and balances</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatCard
+          label="Total deposited"
+          value={formatPeso(summary?.totalDeposited ?? 0)}
+          sub="Lifetime deposits across all members"
+        />
+        <StatCard
+          label="Total invested in bots"
+          value={formatPeso(summary?.activePrincipal ?? 0)}
+          sub="Active bot principal only"
+        />
       </div>
 
       <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:flex-row">

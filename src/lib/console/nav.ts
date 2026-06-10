@@ -3,6 +3,7 @@ import {
   Wallet,
   Users,
   TrendingUp,
+  Gift,
   FileText,
   Headphones,
   type LucideIcon,
@@ -38,9 +39,15 @@ export const consoleNavItems: ConsoleNavItem[] = [
   },
   {
     href: "/console/investments",
-    label: "Investments",
-    shortLabel: "Invest",
+    label: "Bot Investments",
+    shortLabel: "Bots",
     icon: TrendingUp,
+  },
+  {
+    href: "/console/commissions",
+    label: "Commissions",
+    shortLabel: "Commish",
+    icon: Gift,
   },
   {
     href: "/console/reports",

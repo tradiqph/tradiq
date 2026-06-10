@@ -30,6 +30,7 @@ interface Investment {
   lastAccruedAt: string | null;
   nextPayoutAt: string | null;
   maturityAt: string | null;
+  remainingPayout: number;
 }
 
 interface InvestmentsResponse {
@@ -40,6 +41,7 @@ interface InvestmentsResponse {
     todayLiability: number;
     dueTodayCount: number;
     completingTodayCount: number;
+    remainingPayoutLiability: number;
   };
 }
 
@@ -64,9 +66,9 @@ function InvestmentsContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Investments</h1>
+        <h1 className="text-2xl font-bold text-white">Bot Investments</h1>
         <p className="text-sm text-zinc-500">
-          30-day bot subscriptions · 3% daily payout
+          30-day copy trading bots · 3% daily payout · principal returned at maturity
         </p>
       </div>
 
@@ -82,15 +84,19 @@ function InvestmentsContent() {
             sub={`${data.summary.dueTodayCount} due today`}
           />
           <StatCard
-            label="Total shown"
-            value={String(data.investments.length)}
+            label="Remaining payout"
+            value={formatPeso(data.summary.remainingPayoutLiability)}
+            sub="Interest + principal left"
           />
-          {data.summary.completingTodayCount > 0 && (
-            <StatCard
-              label="Completing today"
-              value={String(data.summary.completingTodayCount)}
-            />
-          )}
+          <StatCard
+            label="Bots shown"
+            value={String(data.investments.length)}
+            sub={
+              data.summary.completingTodayCount > 0
+                ? `${data.summary.completingTodayCount} completing today`
+                : undefined
+            }
+          />
         </div>
       )}
 
@@ -129,7 +135,7 @@ function InvestmentsContent() {
         <DataTable
           data={data?.investments ?? []}
           rowKey={(i) => i.id}
-          emptyMessage="No investments found"
+          emptyMessage="No bot investments found"
           columns={[
             {
               key: "member",
@@ -165,6 +171,16 @@ function InvestmentsContent() {
               key: "accrued",
               header: "Total accrued",
               cell: (i) => formatPeso(i.totalAccrued),
+            },
+            {
+              key: "remaining",
+              header: "Remaining payout",
+              cell: (i) =>
+                i.status === "active" ? (
+                  <PesoAmount amount={i.remainingPayout} />
+                ) : (
+                  <span className="text-zinc-600">—</span>
+                ),
             },
             {
               key: "due",

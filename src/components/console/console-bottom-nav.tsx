@@ -14,7 +14,12 @@ export function ConsoleBottomNav() {
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
       aria-label="Console navigation"
     >
-      <div className="grid grid-cols-6 px-1 pt-2 pb-2">
+      <div
+        className="grid px-1 pt-2 pb-2"
+        style={{
+          gridTemplateColumns: `repeat(${consoleNavItems.length}, minmax(0, 1fr))`,
+        }}
+      >
         {consoleNavItems.map(
           ({ href, shortLabel, icon: Icon, exact }) => {
             const active = exact

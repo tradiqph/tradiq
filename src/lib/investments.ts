@@ -101,11 +101,29 @@ export function getMaturityAt(bot: BotInvestmentData): Date | null {
   return new Date(anchor.getTime() + payoutsRemaining * MS_PER_DAY);
 }
 
+export interface ConsoleInvestmentUserMeta {
+  email?: string;
+  displayName?: string;
+}
+
+export function calculateRemainingBotPayout(
+  amount: number,
+  status: string,
+  daysAccrued: number,
+  termDays: number,
+  dailyDue: number
+): number {
+  if (status !== "active") return 0;
+  const payoutsLeft = Math.max(0, termDays - daysAccrued);
+  if (payoutsLeft === 0) return 0;
+  return Math.round((payoutsLeft * dailyDue + amount) * 100) / 100;
+}
+
 export function enrichBotInvestment(
   bot: BotInvestmentData,
   userId: string,
   botId: string,
-  user?: { email?: string; displayName?: string }
+  user?: ConsoleInvestmentUserMeta
 ) {
   const daysAccrued = inferDaysAccrued(bot);
   const termDays = getTermDays(bot);
@@ -132,5 +150,12 @@ export function enrichBotInvestment(
     lastAccruedAt: toDate(bot.lastAccruedAt)?.toISOString() ?? null,
     nextPayoutAt: getNextPayoutAt(bot)?.toISOString() ?? null,
     maturityAt: getMaturityAt(bot)?.toISOString() ?? null,
+    remainingPayout: calculateRemainingBotPayout(
+      bot.amount,
+      bot.status,
+      daysAccrued,
+      termDays,
+      due
+    ),
   };
 }

@@ -124,6 +124,10 @@ export async function fetchAllInvestments(
       .reduce((s, i) => s + i.dailyDue, 0),
     dueTodayCount: investments.filter((i) => i.dueToday).length,
     completingTodayCount: investments.filter((i) => i.completingToday).length,
+    remainingPayoutLiability: investments.reduce(
+      (s, i) => s + i.remainingPayout,
+      0
+    ),
   };
 
   return {
@@ -134,6 +138,8 @@ export async function fetchAllInvestments(
       ...summary,
       todayLiability: Math.round(summary.todayLiability * 100) / 100,
       activePrincipal: Math.round(summary.activePrincipal * 100) / 100,
+      remainingPayoutLiability:
+        Math.round(summary.remainingPayoutLiability * 100) / 100,
     },
   };
 }
