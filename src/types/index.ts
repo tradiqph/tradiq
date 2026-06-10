@@ -16,6 +16,8 @@ export interface UserProfile {
   totalWithdrawn: number;
   totalEarnings: number;
   securityPinHash: string | null;
+  /** Server-set flag so clients can detect PIN without reading the hash */
+  hasSecurityPin?: boolean;
   role: UserRole;
   referralStats: ReferralStats;
   referralNetworkTracked?: boolean;

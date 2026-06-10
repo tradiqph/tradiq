@@ -36,7 +36,7 @@ interface WithdrawModalProps {
 }
 
 export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, pinSet, refreshProfile } = useAuth();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [accounts, setAccounts] = useState<(WithdrawalAccount & { id: string })[]>([]);
@@ -60,7 +60,7 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
   const walletBalance = profile?.walletBalance ?? 0;
   const num = parseFloat(amount) || 0;
   const breakdown = num > 0 ? calculateWithdrawalBreakdown(num) : null;
-  const hasPin = Boolean(profile?.securityPinHash);
+  const hasPin = pinSet;
   const selected = accounts.find((a) => a.id === selectedAccount);
 
   const amountError = num > 0 ? validateWithdrawalAmount(num) : null;

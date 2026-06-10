@@ -81,6 +81,7 @@ export async function PATCH(
       const hash = await bcrypt.hash(parsed.data.pin, 12);
       await auth.db.collection("users").doc(userId).update({
         securityPinHash: hash,
+        hasSecurityPin: true,
       });
       console.info(
         `[console/members] PIN set by ${auth.decoded.uid} for ${userId}`
@@ -91,6 +92,7 @@ export async function PATCH(
     if (parsed.data.action === "clearPin") {
       await auth.db.collection("users").doc(userId).update({
         securityPinHash: FieldValue.delete(),
+        hasSecurityPin: false,
       });
       console.info(
         `[console/members] PIN cleared by ${auth.decoded.uid} for ${userId}`

@@ -1,4 +1,5 @@
 import { format, formatDistanceToNow } from "date-fns";
+import { userHasSecurityPin } from "@/lib/security/pin";
 import { Transaction, UserProfile } from "@/types";
 
 export interface AppNotification {
@@ -18,7 +19,7 @@ export function buildAppNotifications(
 
   if (!profile) return items;
 
-  if (!profile.securityPinHash) {
+  if (!userHasSecurityPin(profile)) {
     items.push({
       id: "security-pin",
       title: "Set your security PIN",

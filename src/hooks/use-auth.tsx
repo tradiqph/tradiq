@@ -22,11 +22,13 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { generateReferralCode } from "@/lib/finance";
 import { createEmptyReferralStats } from "@/lib/referral-stats";
+import { userHasSecurityPin } from "@/lib/security/pin";
 import { UserProfile } from "@/types";
 
 interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
+  pinSet: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (
@@ -37,6 +39,7 @@ interface AuthContextValue {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshPinStatus: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
@@ -99,15 +102,42 @@ async function trackReferralSignupOnServer(
   }
 }
 
+async function fetchPinStatus(firebaseUser: User): Promise<boolean> {
+  try {
+    const token = await firebaseUser.getIdToken();
+    const res = await fetch("/api/account/pin", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { pinSet?: boolean };
+    return Boolean(data.pinSet);
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [pinSet, setPinSet] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refreshProfile = async () => {
     if (!user || !db) return;
     const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) setProfile(snap.data() as UserProfile);
+    if (snap.exists()) {
+      const data = snap.data() as UserProfile;
+      setProfile(data);
+      setPinSet(userHasSecurityPin(data));
+    }
+  };
+
+  const refreshPinStatus = async () => {
+    if (!user) {
+      setPinSet(false);
+      return;
+    }
+    setPinSet(await fetchPinStatus(user));
   };
 
   useEffect(() => {
@@ -122,6 +152,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (snap.exists()) {
           const data = snap.data() as UserProfile;
           setProfile(data);
+          setPinSet(userHasSecurityPin(data));
+          void fetchPinStatus(firebaseUser).then(setPinSet);
           if (
             !data.referralNetworkTracked ||
             (data.signupReferralCode && !data.referredBy)
@@ -141,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setProfile(null);
+        setPinSet(false);
       }
       setLoading(false);
     });
@@ -153,8 +186,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (db) {
       const snap = await getDoc(doc(db, "users", cred.user.uid));
       if (snap.exists()) {
-        setProfile(snap.data() as UserProfile);
+        const data = snap.data() as UserProfile;
+        setProfile(data);
+        setPinSet(userHasSecurityPin(data));
       }
+      void fetchPinStatus(cred.user).then(setPinSet);
     }
   };
 
@@ -200,11 +236,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         profile,
+        pinSet,
         loading,
         login,
         register,
         logout,
         refreshProfile,
+        refreshPinStatus,
         changePassword,
       }}
     >

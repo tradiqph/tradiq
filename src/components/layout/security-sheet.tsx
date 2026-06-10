@@ -16,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/use-auth";
 import { UserProfile } from "@/types";
 import { isSuperAdminRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,7 @@ export function SecuritySheet({
   onOpenChange,
   profile,
 }: SecuritySheetProps) {
-  const pinSet = Boolean(profile?.securityPinHash);
+  const { pinSet } = useAuth();
   const isSuperAdmin = isSuperAdminRole(profile?.role);
 
   const items = [

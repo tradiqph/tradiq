@@ -54,6 +54,7 @@ service cloud.firestore {
         'totalEarnings',
         'role',
         'securityPinHash',
+        'hasSecurityPin',
         'referredBy',
         'referralCode',
         'referralStats',

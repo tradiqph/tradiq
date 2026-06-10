@@ -91,7 +91,15 @@ function SettingsRow({
 }
 
 export default function AccountPage() {
-  const { user, profile, logout, refreshProfile, changePassword } = useAuth();
+  const {
+    user,
+    profile,
+    pinSet,
+    logout,
+    refreshProfile,
+    refreshPinStatus,
+    changePassword,
+  } = useAuth();
   const [accounts, setAccounts] = useState<
     (WithdrawalAccount & { id: string })[]
   >([]);
@@ -104,6 +112,7 @@ export default function AccountPage() {
   >(null);
   const [deleting, setDeleting] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [pinInfoOpen, setPinInfoOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -261,7 +270,7 @@ export default function AccountPage() {
         );
         return;
       }
-      await refreshProfile();
+      await Promise.all([refreshProfile(), refreshPinStatus()]);
       toast.success("PIN set successfully");
       setPinOpen(false);
       setPin("");
@@ -471,9 +480,13 @@ export default function AccountPage() {
           />
           <SettingsRow
             icon={Lock}
-            title={profile?.securityPinHash ? "PIN is set" : "Set Security PIN"}
-            subtitle="4–6 digit PIN for login and withdrawals"
-            onClick={() => setPinOpen(true)}
+            title={pinSet ? "PIN is set" : "Set Security PIN"}
+            subtitle={
+              pinSet
+                ? "Contact support if you forgot your PIN"
+                : "4–6 digit PIN for login and withdrawals"
+            }
+            onClick={() => (pinSet ? setPinInfoOpen(true) : setPinOpen(true))}
           />
         </div>
 
@@ -628,17 +641,56 @@ export default function AccountPage() {
           <DialogHeader>
             <DialogTitle>Set Security PIN</DialogTitle>
           </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Choose a 4–6 digit PIN for withdrawals. You can only set this once.
+          </p>
           <Input
             type="password"
+            inputMode="numeric"
             maxLength={6}
             placeholder="4-6 digit PIN"
             value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             className="border-amber-500/20 bg-black"
           />
           <GoldButton onClick={setSecurityPin} className="w-full">
             Save PIN
           </GoldButton>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pinInfoOpen} onOpenChange={setPinInfoOpen}>
+        <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">
+          <DialogHeader>
+            <DialogTitle>PIN is Set</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Your account is protected with a security PIN for withdrawals. For
+            your security, you cannot change or reset your PIN from the app.
+          </p>
+          <p className="text-sm text-zinc-400">
+            If you forgot your PIN, contact support through{" "}
+            <span className="text-white">Support Request</span> below and our
+            team will assist you.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setPinInfoOpen(false)}
+              className="flex-1 rounded-lg border border-white/10 py-2.5 text-sm text-zinc-300 transition-colors hover:bg-white/5 cursor-pointer"
+            >
+              Close
+            </button>
+            <GoldButton
+              onClick={() => {
+                setPinInfoOpen(false);
+                setSupportOpen(true);
+              }}
+              className="flex-1"
+            >
+              Contact Support
+            </GoldButton>
+          </div>
         </DialogContent>
       </Dialog>
     </>
