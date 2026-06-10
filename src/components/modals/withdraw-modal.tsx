@@ -281,6 +281,10 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           </div>
         )}
 
+        <p className="text-center text-xs text-zinc-500">
+          Withdrawal waiting time may take up to 24–48 hours for processing.
+        </p>
+
         <GoldButton
           onClick={handleSubmit}
           disabled={
