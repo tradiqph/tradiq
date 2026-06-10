@@ -5,9 +5,15 @@ import {
   getReferralTotals,
   normalizeReferralStats,
 } from "@/lib/referral-stats";
+import { isSuperAdminRole } from "@/lib/roles";
 
 export async function aggregateConsoleStats(db: Firestore) {
   const usersSnap = await db.collection("users").get();
+  const superAdminIds = new Set(
+    usersSnap.docs
+      .filter((doc) => isSuperAdminRole(doc.data().role as string | undefined))
+      .map((doc) => doc.id)
+  );
 
   let totalWallet = 0;
   let totalDeposit = 0;
@@ -16,8 +22,12 @@ export async function aggregateConsoleStats(db: Firestore) {
   let totalBotEarnings = 0;
   let totalReferralEarned = 0;
   let totalReferralInvested = 0;
+  let totalMembers = 0;
 
   for (const doc of usersSnap.docs) {
+    if (superAdminIds.has(doc.id)) continue;
+    totalMembers += 1;
+
     const d = doc.data();
     totalWallet += d.walletBalance ?? 0;
     totalDeposit += d.depositBalance ?? 0;
@@ -35,12 +45,16 @@ export async function aggregateConsoleStats(db: Firestore) {
     .where("status", "==", "pending")
     .get();
 
+  let pendingWithdrawals = 0;
   let pendingWithdrawalAmount = 0;
   for (const doc of pendingSnap.docs) {
-    pendingWithdrawalAmount += doc.data().amount ?? 0;
+    const data = doc.data();
+    if (superAdminIds.has(data.userId as string)) continue;
+    pendingWithdrawals += 1;
+    pendingWithdrawalAmount += data.amount ?? 0;
   }
 
-  const activeBots = await fetchAllUserBots(db, "active");
+  const activeBots = await fetchAllUserBots(db, "active", true);
 
   let activePrincipal = 0;
   let todayLiability = 0;
@@ -62,8 +76,8 @@ export async function aggregateConsoleStats(db: Firestore) {
   }
 
   return {
-    totalMembers: usersSnap.size,
-    pendingWithdrawals: pendingSnap.size,
+    totalMembers,
+    pendingWithdrawals,
     pendingWithdrawalAmount: Math.round(pendingWithdrawalAmount * 100) / 100,
     activeInvestments: activeBots.length,
     activePrincipal: Math.round(activePrincipal * 100) / 100,
@@ -87,8 +101,8 @@ export async function fetchAllInvestments(
 ) {
   const botRefs =
     status === "all"
-      ? await fetchAllUserBots(db)
-      : await fetchAllUserBots(db, status);
+      ? await fetchAllUserBots(db, undefined, true)
+      : await fetchAllUserBots(db, status, true);
 
   const userIds = [...new Set(botRefs.map((b) => b.userId))];
   const userMap = new Map<string, { email: string; displayName: string }>();

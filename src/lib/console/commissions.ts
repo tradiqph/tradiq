@@ -63,8 +63,8 @@ export async function fetchSubscriptionCommissions(
 ) {
   const botRefs =
     status === "all"
-      ? await fetchAllUserBots(db)
-      : await fetchAllUserBots(db, status);
+      ? await fetchAllUserBots(db, undefined, true)
+      : await fetchAllUserBots(db, status, true);
 
   const userIds = [...new Set(botRefs.map((b) => b.userId))];
   const { userMap, referredByMap } = await loadUsersWithUplineChains(db, userIds);
