@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:firestore": "node scripts/seed-firestore.mjs",
+    "reset:financials": "node scripts/reset-financials.mjs",
     "firebase:deploy:rules": "npx -y firebase-tools@latest deploy --only firestore"
   },
   "dependencies": {

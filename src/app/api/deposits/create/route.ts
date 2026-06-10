@@ -4,7 +4,8 @@ import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore"
 import { verifyAuthToken } from "@/lib/api-auth";
 import { validateDepositAmount } from "@/lib/finance";
 import { getAdminDb } from "@/lib/firebase/admin";
-import { createQrPhPaymentIntent, isPaymongoTestMode } from "@/lib/paymongo";
+import { createQrPhPaymentIntent } from "@/lib/paymongo";
+import { isPaymongoSimulatorEnabled } from "@/lib/paymongo-config";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
 import { isProduction } from "@/lib/security/env";
 import {
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       intentId,
       amount,
       persistOnClient,
-      testUrl: isPaymongoTestMode() ? testUrl : null,
+      testUrl: isPaymongoSimulatorEnabled() ? testUrl : null,
     });
   } catch (e) {
     return apiError("deposits/create", e, 500, "Failed to create deposit");

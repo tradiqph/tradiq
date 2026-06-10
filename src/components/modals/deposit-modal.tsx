@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoldButton } from "@/components/ui/gold-button";
 import { DEPOSIT_MIN_AMOUNT, DEPOSIT_PRESETS } from "@/lib/finance";
+import { isPaymongoSimulatorEnabled } from "@/lib/paymongo-config";
 import {
   fulfillDepositOnClient,
   persistDepositOnClient,
@@ -49,6 +50,8 @@ function downloadQrImage(qrImage: string, amount: number) {
   link.click();
   document.body.removeChild(link);
 }
+
+const showSimulatorUi = isPaymongoSimulatorEnabled();
 
 export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { user, refreshProfile } = useAuth();
@@ -258,7 +261,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                 <Download className="h-4 w-4" />
                 Download QR
               </button>
-              {testUrl && (
+              {showSimulatorUi && testUrl && (
                 <button
                   type="button"
                   onClick={() => setShowSimulator((v) => !v)}
@@ -270,7 +273,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               )}
             </div>
 
-            {showSimulator && testUrl && (
+            {showSimulatorUi && showSimulator && testUrl && (
               <div className="w-full overflow-hidden rounded-xl border border-violet-500/20 bg-black">
                 <iframe
                   src={testUrl}
@@ -305,9 +308,8 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             )}
 
             <p className="text-center text-xs text-zinc-500">
-              {testUrl
-                ? "Use Simulate payment to test without scanning. Expires in 30 minutes."
-                : "Open your banking or e-wallet app and scan this QR Ph code. Expires in 30 minutes."}
+              Open your banking or e-wallet app and scan this QR Ph code. Expires
+              in 30 minutes.
             </p>
 
             <button
