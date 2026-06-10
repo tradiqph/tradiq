@@ -23,12 +23,13 @@ export async function fulfillPaidDeposit(
     const depositSnap = await db
       .collection("deposits")
       .where("paymongoIntentId", "==", intentId)
-      .where("status", "==", "pending")
-      .limit(1)
+      .limit(5)
       .get();
 
-    if (depositSnap.empty) return false;
-    depositDoc = depositSnap.docs[0];
+    depositDoc =
+      depositSnap.docs.find((doc) => doc.data().status === "pending") ?? null;
+
+    if (!depositDoc) return false;
   }
 
   const deposit = depositDoc.data()!;

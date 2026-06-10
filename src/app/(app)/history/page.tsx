@@ -9,6 +9,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { TimelineItem } from "@/components/ui/timeline-item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
+import { usePendingDepositSync } from "@/hooks/use-pending-deposit-sync";
 import { useTransactions } from "@/hooks/use-transactions";
 import { groupTransactionsByDate } from "@/lib/group-transactions-by-date";
 import {
@@ -29,6 +30,10 @@ const filters: { id: TransactionFilter; label: string }[] = [
 export default function HistoryPage() {
   const { user } = useAuth();
   const { transactions, loading } = useTransactions(user?.uid, 50);
+  const hasPendingDeposits = transactions.some(
+    (tx) => tx.type === "deposit" && tx.status === "pending"
+  );
+  usePendingDepositSync(hasPendingDeposits);
   const [filter, setFilter] = useState<TransactionFilter>("all");
 
   const filtered = useMemo(

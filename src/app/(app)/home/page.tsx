@@ -8,12 +8,17 @@ import { RecentTransactions } from "@/components/wallet/recent-transactions";
 import { DepositModal } from "@/components/modals/deposit-modal";
 import { WithdrawModal } from "@/components/modals/withdraw-modal";
 import { useAuth } from "@/hooks/use-auth";
+import { usePendingDepositSync } from "@/hooks/use-pending-deposit-sync";
 import { useTransactions } from "@/hooks/use-transactions";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { user, profile } = useAuth();
   const { transactions, loading } = useTransactions(user?.uid, 5);
+  const hasPendingDeposits = transactions.some(
+    (tx) => tx.type === "deposit" && tx.status === "pending"
+  );
+  usePendingDepositSync(hasPendingDeposits);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 

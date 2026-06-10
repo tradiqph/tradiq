@@ -13,6 +13,39 @@ export interface ClaimDepositResult {
   error?: string;
 }
 
+export async function syncPendingDepositsForUser(
+  userId: string,
+  idToken: string
+): Promise<{ checked: number; synced: number }> {
+  const db = getAdminDb();
+  if (!db) {
+    return { checked: 0, synced: 0 };
+  }
+
+  const snap = await db
+    .collection("deposits")
+    .where("userId", "==", userId)
+    .get();
+
+  const pending = snap.docs.filter((doc) => doc.data().status === "pending");
+  let synced = 0;
+
+  for (const doc of pending) {
+    const intentId = doc.data().paymongoIntentId as string | undefined;
+    if (!intentId) continue;
+
+    const result = await claimDepositPayment(
+      intentId,
+      doc.id,
+      idToken,
+      userId
+    );
+    if (result.synced) synced += 1;
+  }
+
+  return { checked: pending.length, synced };
+}
+
 export async function claimDepositPayment(
   intentId: string,
   depositId: string | undefined,

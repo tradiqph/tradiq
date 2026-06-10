@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
       attributes?: {
         type?: string;
         data?: {
+          id?: string;
+          type?: string;
           attributes?: {
             payment_intent_id?: string;
             source?: { data?: { id?: string } };
@@ -51,16 +53,24 @@ export async function POST(request: NextRequest) {
   const paymentData = event.data?.attributes?.data;
 
   if (eventType === "payment.paid") {
+    const paymentAttrs = paymentData?.attributes;
     const intentId =
-      paymentData?.attributes?.payment_intent_id ??
-      paymentData?.attributes?.source?.data?.id;
+      paymentAttrs?.payment_intent_id ??
+      (paymentData?.type === "payment_intent" ? paymentData.id : undefined) ??
+      paymentAttrs?.source?.data?.id;
 
     if (!intentId) {
+      console.warn("[paymongo/webhook] payment.paid missing payment_intent_id");
       return NextResponse.json({ received: true });
     }
 
     try {
-      await fulfillPaidDeposit(db, intentId);
+      const synced = await fulfillPaidDeposit(db, intentId);
+      if (!synced) {
+        console.warn(
+          `[paymongo/webhook] payment.paid not fulfilled for intent ${intentId}`
+        );
+      }
     } catch (err) {
       return apiError("paymongo/webhook", err, 500, "Webhook processing failed");
     }
@@ -76,12 +86,14 @@ export async function POST(request: NextRequest) {
       const depositSnap = await db
         .collection("deposits")
         .where("paymongoIntentId", "==", intentId)
-        .where("status", "==", "pending")
-        .limit(1)
+        .limit(5)
         .get();
 
-      if (!depositSnap.empty) {
-        const depositDoc = depositSnap.docs[0];
+      const depositDoc = depositSnap.docs.find(
+        (doc) => doc.data().status === "pending"
+      );
+
+      if (depositDoc) {
         const userId = depositDoc.data().userId as string;
         await depositDoc.ref.update({ status: "expired" });
 
