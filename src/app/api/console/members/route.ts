@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getMembersSummary,
+  mapMemberDoc,
+  memberMatchesSearch,
+  MEMBERS_PAGE_SIZE,
+  sortUserDocsByEmail,
+} from "@/lib/console/members";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 
 export async function GET(request: NextRequest) {
@@ -11,10 +18,45 @@ export async function GET(request: NextRequest) {
     .trim()
     .toLowerCase();
   const limit = Math.min(
-    parseInt(request.nextUrl.searchParams.get("limit") ?? "50", 10),
+    parseInt(
+      request.nextUrl.searchParams.get("limit") ?? String(MEMBERS_PAGE_SIZE),
+      10
+    ),
     100
   );
   const cursor = request.nextUrl.searchParams.get("cursor");
+
+  const allSnap = await auth.db.collection("users").get();
+  const summary = await getMembersSummary(auth.db, search, allSnap.docs);
+
+  let pageDocs: FirebaseFirestore.QueryDocumentSnapshot[];
+
+  if (search) {
+    const filtered = sortUserDocsByEmail(
+      allSnap.docs.filter((doc) => memberMatchesSearch(doc.data(), search))
+    );
+
+    let startIndex = 0;
+    if (cursor) {
+      const cursorIndex = filtered.findIndex((doc) => doc.id === cursor);
+      startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+    }
+
+    const slice = filtered.slice(startIndex, startIndex + limit + 1);
+    const hasMore = slice.length > limit;
+    pageDocs = slice.slice(0, limit);
+    const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
+
+    const members = await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)));
+
+    return NextResponse.json({
+      members,
+      nextCursor,
+      hasMore,
+      summary,
+      pageSize: limit,
+    });
+  }
 
   let query = auth.db.collection("users").orderBy("email").limit(limit + 1);
   if (cursor) {
@@ -29,52 +71,17 @@ export async function GET(request: NextRequest) {
   }
 
   const snap = await query.get();
-  let docs = snap.docs;
+  const hasMore = snap.docs.length > limit;
+  pageDocs = snap.docs.slice(0, limit);
+  const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
 
-  if (search) {
-    const allSnap = await auth.db.collection("users").get();
-    docs = allSnap.docs
-      .filter((d) => {
-        const data = d.data();
-        const haystack = [
-          data.displayName,
-          data.email,
-          data.referralCode,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(search);
-      })
-      .slice(0, limit + 1);
-  }
+  const members = await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)));
 
-  const pageDocs = docs.slice(0, limit);
-  const hasMore = docs.length > limit;
-  const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id : null;
-
-  const members = await Promise.all(
-    pageDocs.map(async (doc) => {
-      const d = doc.data();
-      const botsSnap = await doc.ref.collection("bots").get();
-      const activeBots = botsSnap.docs.filter(
-        (b) => b.data().status === "active"
-      ).length;
-
-      return {
-        id: doc.id,
-        displayName: d.displayName ?? "",
-        email: d.email ?? "",
-        referralCode: d.referralCode ?? "",
-        role: d.role ?? "user",
-        walletBalance: d.walletBalance ?? 0,
-        depositBalance: d.depositBalance ?? 0,
-        totalDeposited: d.totalDeposited ?? 0,
-        totalWithdrawn: d.totalWithdrawn ?? 0,
-        activeBots,
-        memberSince: d.memberSince?.toDate?.()?.toISOString() ?? null,
-      };
-    })
-  );
-
-  return NextResponse.json({ members, nextCursor, hasMore });
+  return NextResponse.json({
+    members,
+    nextCursor,
+    hasMore,
+    summary,
+    pageSize: limit,
+  });
 }

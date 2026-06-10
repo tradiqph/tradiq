@@ -48,11 +48,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 async function ensureUserProfile(
   user: User,
   displayName?: string,
-  referralCode?: string
+  referralCode?: string,
+  source = "unknown"
 ): Promise<UserProfile> {
   if (!db) throw new Error("Firebase not configured");
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
+
+  // #region agent log
+  fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "172a42",
+    },
+    body: JSON.stringify({
+      sessionId: "172a42",
+      hypothesisId: "A",
+      location: "use-auth.tsx:ensureUserProfile:getDoc",
+      message: "ensureUserProfile getDoc result",
+      data: { source, exists: snap.exists(), uid: user.uid },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   if (snap.exists()) {
     return snap.data() as UserProfile;
@@ -76,7 +95,55 @@ async function ensureUserProfile(
     referralStats: createEmptyReferralStats(),
   };
 
-  await setDoc(ref, profile);
+  try {
+    await setDoc(ref, profile);
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "A",
+        location: "use-auth.tsx:ensureUserProfile:setDoc:ok",
+        message: "setDoc succeeded",
+        data: { source, uid: user.uid },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  } catch (e) {
+    const retry = await getDoc(ref);
+    const errCode =
+      e && typeof e === "object" && "code" in e
+        ? String((e as { code: string }).code)
+        : "unknown";
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "A",
+        location: "use-auth.tsx:ensureUserProfile:setDoc:error",
+        message: "setDoc failed",
+        data: {
+          source,
+          uid: user.uid,
+          errCode,
+          retryExists: retry.exists(),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    throw e;
+  }
   return profile;
 }
 
@@ -168,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         } else {
-          const p = await ensureUserProfile(firebaseUser);
+          const p = await ensureUserProfile(firebaseUser, undefined, undefined, "onAuthStateChanged");
           setProfile(p);
         }
       } else {
@@ -201,13 +268,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     referralCode?: string
   ) => {
     if (!auth) throw new Error("Firebase not configured");
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "E",
+        location: "use-auth.tsx:register:start",
+        message: "register started",
+        data: { hasReferral: Boolean(referralCode) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "E",
+        location: "use-auth.tsx:register:authCreated",
+        message: "auth user created",
+        data: { uid: cred.user.uid },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     await updateProfile(cred.user, { displayName });
-    const p = await ensureUserProfile(cred.user, displayName, referralCode);
-    await trackReferralSignupOnServer(cred.user, referralCode);
+    const p = await ensureUserProfile(
+      cred.user,
+      displayName,
+      referralCode,
+      "register"
+    );
+    const referralOk = await trackReferralSignupOnServer(cred.user, referralCode);
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "D",
+        location: "use-auth.tsx:register:referral",
+        message: "referral signup API finished",
+        data: { referralOk },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     const snap = await getDoc(doc(db!, "users", cred.user.uid));
     if (snap.exists()) setProfile(snap.data() as UserProfile);
     else setProfile(p);
+    // #region agent log
+    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "172a42",
+      },
+      body: JSON.stringify({
+        sessionId: "172a42",
+        hypothesisId: "E",
+        location: "use-auth.tsx:register:done",
+        message: "register completed",
+        data: { profileExists: snap.exists() },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
   };
 
   const logout = async () => {

@@ -8,6 +8,7 @@ import { PesoAmount } from "@/components/ui/peso-amount";
 import { formatPeso } from "@/lib/finance";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TabStatus = "pending" | "approved" | "rejected" | "all";
@@ -43,6 +44,11 @@ export default function ConsoleWithdrawalsPage() {
   const [requests, setRequests] = useState<WithdrawalRequestItem[]>([]);
   const [fetching, setFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [actingOn, setActingOn] = useState<{
+    requestId: string;
+    action: "approve" | "reject";
+  } | null>(null);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
@@ -69,34 +75,91 @@ export default function ConsoleWithdrawalsPage() {
     fetchRequests();
   }, [fetchRequests]);
 
+  const handleExportInstapay = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/console/withdrawals/export-instapay", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(
+          typeof data.error === "string"
+            ? data.error
+            : "Failed to export InstaPay file"
+        );
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        res.headers
+          .get("Content-Disposition")
+          ?.match(/filename="(.+)"/)?.[1] ??
+        `instapay-pending-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("InstaPay export downloaded");
+    } catch {
+      toast.error("Failed to export InstaPay file");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleAction = async (
     requestId: string,
     action: "approve" | "reject"
   ) => {
-    if (!user) return;
-    const token = await user.getIdToken();
-    const res = await fetch("/api/console/withdrawals", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ requestId, action }),
-    });
-    if (res.ok) {
-      toast.success(`Request ${action}d`);
-      fetchRequests();
-    } else {
-      const data = await res.json();
-      toast.error(data.error ?? "Failed");
+    if (!user || actingOn) return;
+
+    setActingOn({ requestId, action });
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/console/withdrawals", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ requestId, action }),
+      });
+      if (res.ok) {
+        toast.success(`Request ${action}d`);
+        await fetchRequests();
+      } else {
+        const data = await res.json();
+        toast.error(data.error ?? "Failed");
+      }
+    } catch {
+      toast.error("Failed to update withdrawal");
+    } finally {
+      setActingOn(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Withdrawals</h1>
-        <p className="text-sm text-zinc-500">Manage cashout requests</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Withdrawals</h1>
+          <p className="text-sm text-zinc-500">Manage cashout requests</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleExportInstapay()}
+          disabled={exporting}
+          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-400 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" />
+          {exporting ? "Exporting..." : "Export InstaPay (pending)"}
+        </button>
       </div>
 
       <div className="flex gap-2">
@@ -171,17 +234,35 @@ export default function ConsoleWithdrawalsPage() {
               {req.status === "pending" && (
                 <div className="mt-3 flex gap-2">
                   <GoldButton
-                    onClick={() => handleAction(req.id, "approve")}
-                    className="flex-1"
+                    onClick={() => void handleAction(req.id, "approve")}
+                    disabled={actingOn !== null}
+                    className="flex-1 gap-2"
                   >
-                    Approve
+                    {actingOn?.requestId === req.id &&
+                    actingOn.action === "approve" ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Approving...
+                      </>
+                    ) : (
+                      "Approve"
+                    )}
                   </GoldButton>
                   <button
                     type="button"
-                    onClick={() => handleAction(req.id, "reject")}
-                    className="flex-1 cursor-pointer rounded-md border border-red-500/30 py-2 text-sm text-red-400"
+                    onClick={() => void handleAction(req.id, "reject")}
+                    disabled={actingOn !== null}
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-red-500/30 py-2 text-sm text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Reject
+                    {actingOn?.requestId === req.id &&
+                    actingOn.action === "reject" ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Rejecting...
+                      </>
+                    ) : (
+                      "Reject"
+                    )}
                   </button>
                 </div>
               )}

@@ -7,6 +7,33 @@ import {
 } from "@/lib/referral-stats";
 import { isSuperAdminRole } from "@/lib/roles";
 
+const MANILA_TZ = "Asia/Manila";
+
+function manilaDateKey(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: MANILA_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isManilaToday(value: unknown): boolean {
+  if (!value) return false;
+
+  let date: Date | null = null;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof (value as { toDate?: () => Date }).toDate === "function") {
+    date = (value as { toDate: () => Date }).toDate();
+  } else if (typeof (value as { seconds?: number }).seconds === "number") {
+    date = new Date((value as { seconds: number }).seconds * 1000);
+  }
+
+  if (!date || Number.isNaN(date.getTime())) return false;
+  return manilaDateKey(date) === manilaDateKey(new Date());
+}
+
 export async function aggregateConsoleStats(db: Firestore) {
   const usersSnap = await db.collection("users").get();
   const superAdminIds = new Set(
@@ -23,12 +50,16 @@ export async function aggregateConsoleStats(db: Firestore) {
   let totalReferralEarned = 0;
   let totalReferralInvested = 0;
   let totalMembers = 0;
+  let membersRegisteredToday = 0;
 
   for (const doc of usersSnap.docs) {
     if (superAdminIds.has(doc.id)) continue;
     totalMembers += 1;
 
     const d = doc.data();
+    if (isManilaToday(d.memberSince)) {
+      membersRegisteredToday += 1;
+    }
     totalWallet += d.walletBalance ?? 0;
     totalDeposit += d.depositBalance ?? 0;
     totalDeposited += d.totalDeposited ?? 0;
@@ -54,7 +85,18 @@ export async function aggregateConsoleStats(db: Firestore) {
     pendingWithdrawalAmount += data.amount ?? 0;
   }
 
-  const activeBots = await fetchAllUserBots(db, "active", true);
+  const allBots = await fetchAllUserBots(db, undefined, true);
+
+  let investmentsToday = 0;
+  let investmentsTodayPrincipal = 0;
+
+  for (const { data: bot } of allBots) {
+    if (!isManilaToday(bot.subscribedAt)) continue;
+    investmentsToday += 1;
+    investmentsTodayPrincipal += bot.amount ?? 0;
+  }
+
+  const activeBots = allBots.filter(({ data }) => data.status === "active");
 
   let activePrincipal = 0;
   let todayLiability = 0;
@@ -77,6 +119,10 @@ export async function aggregateConsoleStats(db: Firestore) {
 
   return {
     totalMembers,
+    membersRegisteredToday,
+    investmentsToday,
+    investmentsTodayPrincipal:
+      Math.round(investmentsTodayPrincipal * 100) / 100,
     pendingWithdrawals,
     pendingWithdrawalAmount: Math.round(pendingWithdrawalAmount * 100) / 100,
     activeInvestments: activeBots.length,

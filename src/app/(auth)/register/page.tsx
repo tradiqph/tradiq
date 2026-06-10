@@ -3,11 +3,20 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Gift, Lock, Mail, User, UserPlus } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Gift,
+  Loader2,
+  Lock,
+  Mail,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GoldButton } from "@/components/ui/gold-button";
 import { GlassCard } from "@/components/ui/glass-card";
+import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -36,16 +45,55 @@ function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     try {
       const code = referralCode.trim().toUpperCase();
+      // #region agent log
+      fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "172a42",
+        },
+        body: JSON.stringify({
+          sessionId: "172a42",
+          hypothesisId: "C",
+          location: "register/page.tsx:handleSubmit:start",
+          message: "register form submit",
+          data: { hasReferral: Boolean(code) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       await register(email, password, displayName, code || undefined);
       router.push("/home");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Registration failed";
+      const errCode =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: string }).code)
+          : undefined;
+      // #region agent log
+      fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "172a42",
+        },
+        body: JSON.stringify({
+          sessionId: "172a42",
+          hypothesisId: "C",
+          location: "register/page.tsx:handleSubmit:error",
+          message: "register form error",
+          data: { errCode, message },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   };
@@ -53,6 +101,32 @@ function RegisterForm() {
   return (
     <GlassCard glow className="relative overflow-hidden p-6 md:p-8">
       <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl" />
+
+      {loading && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 px-6 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+          aria-label="Creating account"
+        >
+          <div className="relative flex h-14 w-14 items-center justify-center">
+            <div className="absolute inset-0 animate-ping rounded-full bg-amber-500/20" />
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10">
+              <Loader2 className="h-7 w-7 animate-spin text-amber-400" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-white">
+              Creating your account...
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {referralCode
+                ? "Securing your profile and applying your referral link"
+                : "This only takes a moment — please don’t close this page"}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="relative">
         <div className="mb-6 flex items-center gap-3">
@@ -65,7 +139,11 @@ function RegisterForm() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className={cn("space-y-4", loading && "pointer-events-none")}
+          aria-busy={loading}
+        >
           <div>
             <Label className="text-zinc-400">Display Name</Label>
             <div className="relative mt-1.5">
@@ -75,6 +153,7 @@ function RegisterForm() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your name"
                 className="border-amber-500/20 bg-black/60 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-amber-500/50"
+                disabled={loading}
                 required
               />
             </div>
@@ -89,6 +168,7 @@ function RegisterForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
                 className="border-amber-500/20 bg-black/60 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-amber-500/50"
+                disabled={loading}
                 required
               />
             </div>
@@ -104,12 +184,14 @@ function RegisterForm() {
                 placeholder="Min. 6 characters"
                 minLength={6}
                 className="border-amber-500/20 bg-black/60 pl-10 pr-10 text-white placeholder:text-zinc-600 focus-visible:border-amber-500/50"
+                disabled={loading}
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors hover:text-amber-400 cursor-pointer"
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors hover:text-amber-400 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
@@ -135,6 +217,7 @@ function RegisterForm() {
                   "border-amber-500/20 bg-black/60 pl-10 text-white uppercase placeholder:normal-case placeholder:text-zinc-600 focus-visible:border-amber-500/50",
                   referralFromLink && "border-amber-500/40 bg-amber-500/5"
                 )}
+                disabled={loading}
               />
             </div>
             {referralFromLink && referralCode && (
@@ -143,18 +226,27 @@ function RegisterForm() {
               </p>
             )}
           </div>
-          <GoldButton
-            type="submit"
-            disabled={loading}
-            className={cn("h-11 w-full text-base", loading && "opacity-80")}
-          >
-            {loading ? "Creating..." : "Register"}
-          </GoldButton>
+          <ShimmerButton type="submit" disabled={loading} className="h-11">
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating account...
+              </span>
+            ) : (
+              "Register"
+            )}
+          </ShimmerButton>
         </form>
 
         <p className="mt-5 text-center text-sm text-zinc-500">
           Have an account?{" "}
-          <Link href="/login" className="text-amber-400 hover:underline">
+          <Link
+            href="/login"
+            className={cn(
+              "text-amber-400 hover:underline",
+              loading && "pointer-events-none opacity-50"
+            )}
+          >
             Sign In
           </Link>
         </p>

@@ -10,6 +10,9 @@ import { ArrowRight, Wallet, TrendingUp } from "lucide-react";
 
 interface ConsoleStats {
   totalMembers: number;
+  membersRegisteredToday: number;
+  investmentsToday: number;
+  investmentsTodayPrincipal: number;
   pendingWithdrawals: number;
   pendingWithdrawalAmount: number;
   activeInvestments: number;
@@ -52,12 +55,26 @@ export default function ConsoleDashboardPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Total members" value={String(data.totalMembers)} />
         <StatCard
-          label="Pending withdrawals"
+          label="Members registered today"
+          value={String(data.membersRegisteredToday)}
+          sub="Philippine time (UTC+8)"
+        />
+        <StatCard
+          label="Investments today"
+          value={String(data.investmentsToday)}
+          sub={
+            data.investmentsTodayPrincipal > 0
+              ? formatPeso(data.investmentsTodayPrincipal)
+              : "New bot subscriptions"
+          }
+        />
+        <StatCard
+          label="Pending withdrawal requests"
           value={String(data.pendingWithdrawals)}
           sub={formatPeso(data.pendingWithdrawalAmount)}
         />
+        <StatCard label="Total members" value={String(data.totalMembers)} />
         <StatCard
           label="Active investments"
           value={String(data.activeInvestments)}

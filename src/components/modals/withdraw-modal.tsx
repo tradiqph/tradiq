@@ -36,12 +36,17 @@ interface WithdrawModalProps {
 }
 
 export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
-  const { user, profile, pinSet, refreshProfile } = useAuth();
+  const { user, profile, pinSet, refreshProfile, refreshPinStatus } = useAuth();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [accounts, setAccounts] = useState<(WithdrawalAccount & { id: string })[]>([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    void refreshPinStatus();
+  }, [open, user, refreshPinStatus]);
 
   useEffect(() => {
     if (!user || !db || !open) return;
@@ -72,7 +77,11 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
       toast.error("Add a withdrawal account first");
       return;
     }
-    if (hasPin && !pin) {
+    if (!hasPin) {
+      toast.error("Set up your security PIN in Account first");
+      return;
+    }
+    if (!pin) {
       toast.error("Enter your security PIN");
       return;
     }
@@ -211,6 +220,37 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           )}
         </div>
 
+        {hasPin ? (
+          <div className="space-y-1.5">
+            <Label className="text-zinc-400">Security PIN</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="Enter your PIN"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              className="border-amber-500/20 bg-black text-white"
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-3">
+            <p className="text-sm font-medium text-white">
+              Set up your security PIN first
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              A PIN is required before you can request a withdrawal.
+            </p>
+            <Link
+              href="/account"
+              onClick={() => onOpenChange(false)}
+              className="mt-2 inline-block text-sm text-amber-400 hover:underline"
+            >
+              Go to Account → Set Security PIN
+            </Link>
+          </div>
+        )}
+
         {breakdown ? (
           <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-zinc-950 to-zinc-950 p-4">
             <div className="flex items-center justify-between gap-2">
@@ -266,21 +306,6 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           </p>
         )}
 
-        {hasPin && (
-          <div className="space-y-1.5">
-            <Label className="text-zinc-400">Security PIN</Label>
-            <Input
-              type="password"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="Enter your PIN"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-              className="border-amber-500/20 bg-black text-white"
-            />
-          </div>
-        )}
-
         <p className="text-center text-xs text-zinc-500">
           Withdrawal waiting time may take up to 24–48 hours for processing.
         </p>
@@ -289,11 +314,12 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
           onClick={handleSubmit}
           disabled={
             loading ||
+            !hasPin ||
             num <= 0 ||
             Boolean(amountError) ||
             exceedsBalance ||
             !selectedAccount ||
-            (hasPin && pin.length < 4)
+            pin.length < 4
           }
           className={cn("w-full", breakdown && "mt-1")}
         >
