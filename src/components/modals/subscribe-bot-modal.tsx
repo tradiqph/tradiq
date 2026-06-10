@@ -66,7 +66,7 @@ export function SubscribeBotModal({
       }
 
       if (data.subscribeLocally) {
-        await subscribeBotOnClient(user.uid, num);
+        const botId = await subscribeBotOnClient(user.uid, num);
         try {
           await fetch("/api/referral/apply-commissions", {
             method: "POST",
@@ -78,6 +78,18 @@ export function SubscribeBotModal({
           });
         } catch {
           // Commission sync is best-effort for local dev fallback
+        }
+        try {
+          await fetch("/api/notifications/bot-investment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ amount: num, botId }),
+          });
+        } catch {
+          // Admin email is best-effort for local dev fallback
         }
       }
 

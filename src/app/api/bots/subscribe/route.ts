@@ -105,26 +105,33 @@ export async function POST(request: NextRequest) {
       console.warn("[bots/subscribe] active bot count skipped:", countErr);
     }
 
-    void sendBotInvestmentAlert({
-      db,
-      memberId: decoded.uid,
-      memberName:
-        (userData.displayName as string | undefined)?.trim() ||
-        userData.email ||
-        "Member",
-      memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
-      amount,
-      investedAt: new Date(),
-      botId: newBotId ?? undefined,
-      activeBotCount,
-    }).then((result) => {
-      if (!result.ok) {
+    try {
+      const notifyResult = await sendBotInvestmentAlert({
+        db,
+        memberId: decoded.uid,
+        memberName:
+          (userData.displayName as string | undefined)?.trim() ||
+          userData.email ||
+          "Member",
+        memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
+        amount,
+        investedAt: new Date(),
+        botId: newBotId ?? undefined,
+        activeBotCount,
+      });
+      if (!notifyResult.ok) {
         console.warn(
           "[bots/subscribe] admin notification not sent:",
-          result.error
+          notifyResult.error
+        );
+      } else {
+        console.info(
+          `[bots/subscribe] admin notification sent id=${notifyResult.id ?? "unknown"}`
         );
       }
-    });
+    } catch (notifyErr) {
+      console.warn("[bots/subscribe] admin notification failed:", notifyErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (e) {

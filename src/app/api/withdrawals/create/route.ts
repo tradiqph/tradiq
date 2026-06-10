@@ -173,28 +173,35 @@ export async function POST(request: NextRequest) {
 
     const accountSnapshot = accountSnap.data() as WithdrawalAccount;
 
-    void sendWithdrawalRequestAlert({
-      db,
-      memberId: decoded.uid,
-      memberName:
-        (userData.displayName as string | undefined)?.trim() ||
-        userData.email ||
-        "Member",
-      memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
-      requestId: requestRef.id,
-      amount: num,
-      processingFee,
-      netPayout,
-      requestedAt: new Date(),
-      account: accountSnapshot,
-    }).then((result) => {
-      if (!result.ok) {
+    try {
+      const notifyResult = await sendWithdrawalRequestAlert({
+        db,
+        memberId: decoded.uid,
+        memberName:
+          (userData.displayName as string | undefined)?.trim() ||
+          userData.email ||
+          "Member",
+        memberEmail: (userData.email as string) ?? decoded.email ?? "unknown",
+        requestId: requestRef.id,
+        amount: num,
+        processingFee,
+        netPayout,
+        requestedAt: new Date(),
+        account: accountSnapshot,
+      });
+      if (!notifyResult.ok) {
         console.warn(
           "[withdrawals/create] admin notification not sent:",
-          result.error
+          notifyResult.error
+        );
+      } else {
+        console.info(
+          `[withdrawals/create] admin notification sent id=${notifyResult.id ?? "unknown"}`
         );
       }
-    });
+    } catch (notifyErr) {
+      console.warn("[withdrawals/create] admin notification failed:", notifyErr);
+    }
 
     return NextResponse.json({
       success: true,
