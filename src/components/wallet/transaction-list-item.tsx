@@ -20,13 +20,17 @@ interface TransactionListItemProps {
 export function TransactionListItem({ tx, isLast }: TransactionListItemProps) {
   const sign = getTransactionAmountSign(tx);
   const statusBadge = getTransactionStatusBadge(tx);
-  const isInactive = tx.status === "expired" || tx.status === "rejected";
+  const isInactive =
+    tx.status === "expired" ||
+    tx.status === "rejected" ||
+    String(tx.status).toLowerCase() === "expired" ||
+    String(tx.status).toLowerCase() === "rejected";
 
   return (
     <TimelineItem isLast={isLast}>
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">
-          {getTransactionTypeLabel(tx.type)}
+          {getTransactionTypeLabel(tx)}
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-medium capitalize text-white">

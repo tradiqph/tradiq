@@ -1,13 +1,63 @@
-import { Transaction } from "@/types";
+import { Transaction, TransactionStatus, TransactionType } from "@/types";
 import { formatPeso } from "@/lib/finance";
 
 export type TransactionFilter = "all" | "deposits" | "withdrawals";
 export type TransactionAmountSign = "+" | "-" | null;
 
+function normalizeTransactionStatus(status: unknown): TransactionStatus {
+  const value = String(status ?? "pending").toLowerCase().trim();
+  if (
+    value === "paid" ||
+    value === "approved" ||
+    value === "pending" ||
+    value === "expired" ||
+    value === "rejected"
+  ) {
+    return value;
+  }
+  return "pending";
+}
+
+function resolveTransactionType(
+  tx: Pick<Transaction, "type" | "title">
+): TransactionType | null {
+  const raw = String(tx.type ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, "_");
+
+  if (raw === "earnings") return "earning";
+  if (
+    raw === "deposit" ||
+    raw === "bot_subscribe" ||
+    raw === "earning" ||
+    raw === "referral" ||
+    raw === "withdrawal"
+  ) {
+    return raw;
+  }
+
+  const title = (tx.title ?? "").toLowerCase();
+  if (
+    title.includes("daily bot earnings") ||
+    title.includes("final bot earnings") ||
+    title.includes("principal returned")
+  ) {
+    return "earning";
+  }
+  if (title.includes("copy trading bot")) return "bot_subscribe";
+  if (title.includes("withdrawal")) return "withdrawal";
+  if (title.includes("referral")) return "referral";
+  if (title.includes("deposit") || title.includes("qr ph")) return "deposit";
+
+  return null;
+}
+
 export function getTransactionAmountSign(
-  tx: Pick<Transaction, "type" | "status">
+  tx: Pick<Transaction, "type" | "status" | "title">
 ): TransactionAmountSign {
-  const { type, status } = tx;
+  const type = resolveTransactionType(tx);
+  const status = normalizeTransactionStatus(tx.status);
 
   if (status === "expired" || status === "rejected") {
     return null;
@@ -49,12 +99,13 @@ export function getTransactionAmountClassName(
 }
 
 export function getTransactionStatusBadge(
-  tx: Pick<Transaction, "type" | "status">
+  tx: Pick<Transaction, "type" | "status" | "title">
 ): {
   variant: "default" | "destructive" | "secondary";
   label: string;
 } {
-  const { type, status } = tx;
+  const type = resolveTransactionType(tx);
+  const status = normalizeTransactionStatus(tx.status);
 
   if (status === "pending") {
     return { variant: "secondary", label: "Pending" };
@@ -105,8 +156,13 @@ export function filterTransactions<
   return transactions;
 }
 
-export function getTransactionTypeLabel(type: string): string {
+export function getTransactionTypeLabel(
+  tx: Pick<Transaction, "type" | "title"> | string
+): string {
+  const type =
+    typeof tx === "string" ? tx : resolveTransactionType(tx) ?? tx.type ?? "";
   if (type === "deposit") return "QR";
   if (type === "withdrawal") return "WD";
+  if (!type) return "TX";
   return type.slice(0, 2).toUpperCase();
 }
