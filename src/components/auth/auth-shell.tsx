@@ -14,11 +14,11 @@ interface AuthShellProps {
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 12 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.45, ease: EASE_OUT },
+    transition: { delay: i * 0.04, duration: 0.3, ease: EASE_OUT },
   }),
 };
 
@@ -35,15 +35,7 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
   return (
     <div className="relative min-h-dvh overflow-hidden bg-black">
       <div className="pointer-events-none absolute inset-0">
-        <motion.div
-          className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-500/12 blur-[120px]"
-          animate={
-            reduceMotion
-              ? undefined
-              : { scale: [1, 1.08, 1], opacity: [0.12, 0.18, 0.12] }
-          }
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
+        <div className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-[120px]" />
         <div className="absolute right-0 bottom-0 h-80 w-80 rounded-full bg-yellow-600/8 blur-[100px]" />
         <div className="absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-amber-400/5 blur-[80px]" />
         <div
@@ -57,10 +49,7 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 md:px-8">
-        <motion.header
-          className="relative mb-6 flex items-center md:mb-8"
-          {...motionProps(0)}
-        >
+        <motion.header className="mb-6 md:mb-8" {...motionProps(0)}>
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-amber-400"
@@ -68,17 +57,6 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Back to home</span>
           </Link>
-          <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 justify-center">
-            <Image
-              src="/assets/logo-tradiq.png"
-              alt="TradIQ"
-              width={240}
-              height={160}
-              className="h-12 w-auto opacity-95 sm:h-14 md:h-16"
-              priority
-            />
-          </div>
-          <div className="ml-auto w-10 sm:w-28" aria-hidden />
         </motion.header>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-10 pb-8 lg:flex-row lg:items-center lg:gap-16">
@@ -108,20 +86,14 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
               {...motionProps(4)}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-transparent to-transparent" />
-              <motion.div
-                className="relative"
-                animate={reduceMotion ? undefined : { y: [0, -6, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Image
-                  src="/assets/auth-login-hero.png"
-                  alt="TradIQ secure login"
-                  width={600}
-                  height={500}
-                  className="relative w-full object-cover"
-                  priority
-                />
-              </motion.div>
+              <Image
+                src="/assets/auth-login-hero.png"
+                alt="TradIQ secure login"
+                width={600}
+                height={500}
+                className="relative w-full object-cover"
+                loading="lazy"
+              />
             </motion.div>
 
             <motion.div
@@ -132,17 +104,14 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
                 { value: "3%", label: "Daily Returns" },
                 { value: "QR Ph", label: "Deposits" },
                 { value: "24/7", label: "Bot Trading" },
-              ].map((stat, i) => (
-                <motion.div
+              ].map((stat) => (
+                <div
                   key={stat.label}
                   className="rounded-xl border border-amber-500/15 bg-white/5 px-3 py-3 text-center backdrop-blur-sm"
-                  initial={reduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5 + i * 0.1, duration: 0.35 }}
                 >
                   <p className="text-lg font-bold text-amber-400">{stat.value}</p>
                   <p className="text-[10px] text-zinc-500">{stat.label}</p>
-                </motion.div>
+                </div>
               ))}
             </motion.div>
 
@@ -157,9 +126,9 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
 
           <motion.div
             className="w-full max-w-md"
-            initial={reduceMotion ? undefined : { opacity: 0, x: 24 }}
+            initial={reduceMotion ? undefined : { opacity: 0, x: 16 }}
             animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
-            transition={{ delay: 0.25, duration: 0.5, ease: EASE_OUT }}
+            transition={{ delay: 0.1, duration: 0.35, ease: EASE_OUT }}
           >
             {children}
           </motion.div>

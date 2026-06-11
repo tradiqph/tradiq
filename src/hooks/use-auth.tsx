@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -47,31 +48,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function ensureUserProfile(
   user: User,
-  displayName?: string,
-  referralCode?: string,
-  source = "unknown"
+  displayName?: string
 ): Promise<UserProfile> {
   if (!db) throw new Error("Firebase not configured");
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
-
-  // #region agent log
-  fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "172a42",
-    },
-    body: JSON.stringify({
-      sessionId: "172a42",
-      hypothesisId: "A",
-      location: "use-auth.tsx:ensureUserProfile:getDoc",
-      message: "ensureUserProfile getDoc result",
-      data: { source, exists: snap.exists(), uid: user.uid },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   if (snap.exists()) {
     return snap.data() as UserProfile;
@@ -97,51 +78,11 @@ async function ensureUserProfile(
 
   try {
     await setDoc(ref, profile);
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "A",
-        location: "use-auth.tsx:ensureUserProfile:setDoc:ok",
-        message: "setDoc succeeded",
-        data: { source, uid: user.uid },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
   } catch (e) {
     const retry = await getDoc(ref);
-    const errCode =
-      e && typeof e === "object" && "code" in e
-        ? String((e as { code: string }).code)
-        : "unknown";
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "A",
-        location: "use-auth.tsx:ensureUserProfile:setDoc:error",
-        message: "setDoc failed",
-        data: {
-          source,
-          uid: user.uid,
-          errCode,
-          retryExists: retry.exists(),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    if (retry.exists()) {
+      return retry.data() as UserProfile;
+    }
     throw e;
   }
   return profile;
@@ -183,19 +124,50 @@ async function fetchPinStatus(firebaseUser: User): Promise<boolean> {
   }
 }
 
+function needsReferralRetry(data: UserProfile): boolean {
+  return (
+    !data.referralNetworkTracked ||
+    Boolean(data.signupReferralCode && !data.referredBy)
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [pinSet, setPinSet] = useState(false);
   const [loading, setLoading] = useState(true);
+  const profileCacheRef = useRef<{ uid: string; profile: UserProfile } | null>(
+    null
+  );
+
+  const applyProfile = (uid: string, data: UserProfile) => {
+    profileCacheRef.current = { uid, profile: data };
+    setProfile(data);
+    setPinSet(userHasSecurityPin(data));
+  };
+
+  const runDeferredAuthTasks = (firebaseUser: User, data: UserProfile) => {
+    void fetchPinStatus(firebaseUser).then(setPinSet);
+
+    if (!needsReferralRetry(data)) return;
+
+    void trackReferralSignupOnServer(
+      firebaseUser,
+      data.signupReferralCode
+    ).then(async () => {
+      if (!db) return;
+      const refreshed = await getDoc(doc(db, "users", firebaseUser.uid));
+      if (refreshed.exists()) {
+        applyProfile(firebaseUser.uid, refreshed.data() as UserProfile);
+      }
+    });
+  };
 
   const refreshProfile = async () => {
     if (!user || !db) return;
     const snap = await getDoc(doc(db, "users", user.uid));
     if (snap.exists()) {
-      const data = snap.data() as UserProfile;
-      setProfile(data);
-      setPinSet(userHasSecurityPin(data));
+      applyProfile(user.uid, snap.data() as UserProfile);
     }
   };
 
@@ -214,35 +186,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      if (firebaseUser && db) {
-        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (snap.exists()) {
-          const data = snap.data() as UserProfile;
-          setProfile(data);
-          setPinSet(userHasSecurityPin(data));
-          void fetchPinStatus(firebaseUser).then(setPinSet);
-          if (
-            !data.referralNetworkTracked ||
-            (data.signupReferralCode && !data.referredBy)
-          ) {
-            await trackReferralSignupOnServer(
-              firebaseUser,
-              data.signupReferralCode
-            );
-            const refreshed = await getDoc(doc(db, "users", firebaseUser.uid));
-            if (refreshed.exists()) {
-              setProfile(refreshed.data() as UserProfile);
-            }
-          }
-        } else {
-          const p = await ensureUserProfile(firebaseUser, undefined, undefined, "onAuthStateChanged");
-          setProfile(p);
-        }
-      } else {
+
+      if (!firebaseUser || !db) {
+        profileCacheRef.current = null;
         setProfile(null);
         setPinSet(false);
+        setLoading(false);
+        return;
       }
+
+      const cached = profileCacheRef.current;
+      if (cached?.uid === firebaseUser.uid) {
+        setProfile(cached.profile);
+        setPinSet(userHasSecurityPin(cached.profile));
+        setLoading(false);
+        runDeferredAuthTasks(firebaseUser, cached.profile);
+        return;
+      }
+
+      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+      if (snap.exists()) {
+        const data = snap.data() as UserProfile;
+        applyProfile(firebaseUser.uid, data);
+        setLoading(false);
+        runDeferredAuthTasks(firebaseUser, data);
+        return;
+      }
+
+      const created = await ensureUserProfile(firebaseUser);
+      applyProfile(firebaseUser.uid, created);
       setLoading(false);
+      runDeferredAuthTasks(firebaseUser, created);
     });
     return unsub;
   }, []);
@@ -250,14 +224,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     if (!auth) throw new Error("Firebase is not configured. Check .env.local");
     const cred = await signInWithEmailAndPassword(auth, email, password);
+    setUser(cred.user);
+
     if (db) {
       const snap = await getDoc(doc(db, "users", cred.user.uid));
       if (snap.exists()) {
         const data = snap.data() as UserProfile;
-        setProfile(data);
-        setPinSet(userHasSecurityPin(data));
+        applyProfile(cred.user.uid, data);
       }
-      void fetchPinStatus(cred.user).then(setPinSet);
+    }
+
+    setLoading(false);
+    if (profileCacheRef.current?.uid === cred.user.uid) {
+      runDeferredAuthTasks(cred.user, profileCacheRef.current.profile);
     }
   };
 
@@ -268,90 +247,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     referralCode?: string
   ) => {
     if (!auth) throw new Error("Firebase not configured");
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "E",
-        location: "use-auth.tsx:register:start",
-        message: "register started",
-        data: { hasReferral: Boolean(referralCode) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "E",
-        location: "use-auth.tsx:register:authCreated",
-        message: "auth user created",
-        data: { uid: cred.user.uid },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    setUser(cred.user);
     await updateProfile(cred.user, { displayName });
-    const p = await ensureUserProfile(
-      cred.user,
-      displayName,
-      referralCode,
-      "register"
-    );
+    const p = await ensureUserProfile(cred.user, displayName);
+    applyProfile(cred.user.uid, p);
+    setLoading(false);
+
     const referralOk = await trackReferralSignupOnServer(cred.user, referralCode);
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "D",
-        location: "use-auth.tsx:register:referral",
-        message: "referral signup API finished",
-        data: { referralOk },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-    const snap = await getDoc(doc(db!, "users", cred.user.uid));
-    if (snap.exists()) setProfile(snap.data() as UserProfile);
-    else setProfile(p);
-    // #region agent log
-    fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "172a42",
-      },
-      body: JSON.stringify({
-        sessionId: "172a42",
-        hypothesisId: "E",
-        location: "use-auth.tsx:register:done",
-        message: "register completed",
-        data: { profileExists: snap.exists() },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    if (referralOk && db) {
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (snap.exists()) {
+        applyProfile(cred.user.uid, snap.data() as UserProfile);
+      }
+    } else {
+      runDeferredAuthTasks(cred.user, p);
+    }
   };
 
   const logout = async () => {
     if (!auth) throw new Error("Firebase not configured");
+    profileCacheRef.current = null;
     await signOut(auth);
   };
 

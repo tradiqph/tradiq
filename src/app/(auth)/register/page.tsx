@@ -50,49 +50,11 @@ function RegisterForm() {
     setLoading(true);
     try {
       const code = referralCode.trim().toUpperCase();
-      // #region agent log
-      fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "172a42",
-        },
-        body: JSON.stringify({
-          sessionId: "172a42",
-          hypothesisId: "C",
-          location: "register/page.tsx:handleSubmit:start",
-          message: "register form submit",
-          data: { hasReferral: Boolean(code) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       await register(email, password, displayName, code || undefined);
       router.push("/home");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Registration failed";
-      const errCode =
-        err && typeof err === "object" && "code" in err
-          ? String((err as { code: string }).code)
-          : undefined;
-      // #region agent log
-      fetch("http://127.0.0.1:7895/ingest/7d838b4c-6b8d-4032-bbe8-76fd27a95288", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "172a42",
-        },
-        body: JSON.stringify({
-          sessionId: "172a42",
-          hypothesisId: "C",
-          location: "register/page.tsx:handleSubmit:error",
-          message: "register form error",
-          data: { errCode, message },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       toast.error(message);
       setLoading(false);
     }

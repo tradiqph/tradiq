@@ -29,8 +29,8 @@ export function AppHeader({
   backHref = "/home",
   rightBadge,
 }: AppHeaderProps) {
-  const { user, profile } = useAuth();
-  const { transactions } = useTransactions(user?.uid, 10);
+  const { profile } = useAuth();
+  const { transactions } = useTransactions(10);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const notifications = useMemo(

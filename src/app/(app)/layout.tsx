@@ -1,5 +1,8 @@
+"use client";
+
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { TransactionsProvider } from "@/hooks/use-transactions";
 
 export default function AppLayout({
   children,
@@ -8,7 +11,9 @@ export default function AppLayout({
 }) {
   return (
     <AuthGuard>
-      <MobileShell>{children}</MobileShell>
+      <TransactionsProvider>
+        <MobileShell>{children}</MobileShell>
+      </TransactionsProvider>
     </AuthGuard>
   );
 }

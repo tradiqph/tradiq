@@ -42,11 +42,11 @@ function getLoginErrorMessage(error: unknown): string {
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const fieldVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
+  hidden: { opacity: 0, y: 8 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.35 + i * 0.07, duration: 0.4, ease: EASE_OUT },
+    transition: { delay: 0.1 + i * 0.04, duration: 0.3, ease: EASE_OUT },
   }),
 };
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
       heroSubtitle="Sign in to manage your portfolio, track bot earnings, and access your wallet — all in one premium dashboard."
     >
       <GlassCard glow className="relative overflow-hidden p-6 md:p-8">
-        <BorderBeam duration={10} />
+        <BorderBeam />
         <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl" />
 
         <div className="relative z-10">
@@ -106,7 +106,7 @@ export default function LoginPage() {
             className="mb-7"
             initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
             animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
+            transition={{ delay: 0.08, duration: 0.3 }}
           >
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Sign In
@@ -118,7 +118,7 @@ export default function LoginPage() {
               className="mt-4 h-0.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-transparent"
               initial={reduceMotion ? undefined : { width: 0, opacity: 0 }}
               animate={reduceMotion ? undefined : { width: 64, opacity: 1 }}
-              transition={{ delay: 0.45, duration: 0.5, ease: "easeOut" }}
+              transition={{ delay: 0.12, duration: 0.35, ease: "easeOut" }}
             />
           </motion.div>
 

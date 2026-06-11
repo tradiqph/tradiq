@@ -6,7 +6,6 @@ import { AppHeader } from "@/components/layout/app-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionListItem } from "@/components/wallet/transaction-list-item";
-import { useAuth } from "@/hooks/use-auth";
 import { usePendingDepositSync } from "@/hooks/use-pending-deposit-sync";
 import { useTransactions } from "@/hooks/use-transactions";
 import { groupTransactionsByDate } from "@/lib/group-transactions-by-date";
@@ -23,8 +22,7 @@ const filters: { id: TransactionFilter; label: string }[] = [
 ];
 
 export default function HistoryPage() {
-  const { user } = useAuth();
-  const { transactions, loading } = useTransactions(user?.uid, 50);
+  const { transactions, loading } = useTransactions(50);
   const hasPendingDeposits = transactions.some(
     (tx) => tx.type === "deposit" && tx.status === "pending"
   );

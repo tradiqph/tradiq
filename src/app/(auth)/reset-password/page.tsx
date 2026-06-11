@@ -160,7 +160,7 @@ function ResetPasswordForm() {
       heroSubtitle="Choose a strong new password to protect your wallet, bots, and earnings."
     >
       <GlassCard glow className="relative overflow-hidden p-6 md:p-8">
-        <BorderBeam duration={10} />
+        <BorderBeam />
         <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl" />
 
         <div className="relative z-10">

@@ -13,8 +13,8 @@ import { useTransactions } from "@/hooks/use-transactions";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const { user, profile } = useAuth();
-  const { transactions, loading } = useTransactions(user?.uid, 5);
+  const { profile } = useAuth();
+  const { transactions, loading } = useTransactions(5);
   const hasPendingDeposits = transactions.some(
     (tx) => tx.type === "deposit" && tx.status === "pending"
   );
