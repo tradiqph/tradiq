@@ -96,6 +96,19 @@ export function filterNetworkMembers(
   });
 }
 
+/** Member-facing search — display name only (no email). */
+export function filterNetworkMembersByDisplayName(
+  members: NetworkMemberRow[],
+  search: string
+): NetworkMemberRow[] {
+  const query = search.trim().toLowerCase();
+  if (!query) return members;
+
+  return members.filter((member) =>
+    (member.displayName || "Member").toLowerCase().includes(query)
+  );
+}
+
 export function paginateNetworkMembers<T>(
   members: T[],
   limit: number,

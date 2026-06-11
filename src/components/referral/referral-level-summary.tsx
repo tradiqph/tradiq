@@ -13,27 +13,34 @@ import { UserProfile } from "@/types";
 
 interface ReferralLevelSummaryProps {
   profile: UserProfile;
+  onViewNetwork?: () => void;
 }
 
-export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
+export function ReferralLevelSummary({
+  profile,
+  onViewNetwork,
+}: ReferralLevelSummaryProps) {
   const stats = normalizeReferralStats(profile.referralStats);
   const levels = getReferralLevelSummaries(stats);
   const totals = getReferralTotals(stats);
 
   return (
     <div className="space-y-4">
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 flex gap-3 px-4 pb-1">
         <StatTile
           label="Directs"
           value={totals.directMembers}
           icon={Users}
-          className="min-w-[110px] shrink-0"
+          reserveHintSpace={Boolean(onViewNetwork)}
+          className="min-w-0 flex-1 basis-0"
         />
         <StatTile
           label="Network"
           value={totals.totalMembers}
           icon={Users}
-          className="min-w-[110px] shrink-0"
+          onClick={onViewNetwork}
+          hint={onViewNetwork ? "Tap to view" : undefined}
+          className="min-w-0 flex-1 basis-0"
         />
         <StatTile
           label="Total earned"
@@ -41,7 +48,8 @@ export function ReferralLevelSummary({ profile }: ReferralLevelSummaryProps) {
           icon={Gift}
           peso
           gold
-          className="min-w-[120px] shrink-0"
+          reserveHintSpace={Boolean(onViewNetwork)}
+          className="min-w-0 flex-1 basis-0"
         />
       </div>
 

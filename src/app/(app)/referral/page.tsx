@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Copy, Gift, TrendingUp, ChevronDown } from "lucide-react";
 import { ReferralLevelSummary } from "@/components/referral/referral-level-summary";
+import { ReferralNetworkSheet } from "@/components/referral/referral-network-sheet";
 import { AppHeader } from "@/components/layout/app-header";
 import { GoldButton } from "@/components/ui/gold-button";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +18,7 @@ const commissionTiers = getReferralRewardExamples();
 export default function ReferralPage() {
   const { profile, refreshProfile } = useAuth();
   const [expanded, setExpanded] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
 
   useEffect(() => {
     void refreshProfile();
@@ -92,7 +94,17 @@ export default function ReferralPage() {
           </div>
         </div>
 
-        {profile && <ReferralLevelSummary profile={profile} />}
+        {profile && (
+          <ReferralLevelSummary
+            profile={profile}
+            onViewNetwork={() => setNetworkOpen(true)}
+          />
+        )}
+
+        <ReferralNetworkSheet
+          open={networkOpen}
+          onOpenChange={setNetworkOpen}
+        />
 
         <div className="surface-flat overflow-hidden">
           <button
