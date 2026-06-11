@@ -177,7 +177,7 @@ export async function fetchAllInvestments(
   );
 
   const filtered = dueTodayOnly
-    ? investments.filter((i) => i.dueToday)
+    ? investments.filter((i) => i.payoutTodayStatus !== null)
     : investments;
 
   const summary = {

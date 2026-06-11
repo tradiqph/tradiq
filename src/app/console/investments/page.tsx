@@ -25,6 +25,7 @@ interface Investment {
   dailyDue: number;
   totalAccrued: number;
   dueToday: boolean;
+  payoutTodayStatus: "pending" | "added" | null;
   completingToday: boolean;
   subscribedAt: string | null;
   lastAccruedAt: string | null;
@@ -186,7 +187,9 @@ function InvestmentsContent() {
               key: "due",
               header: "Due today",
               cell: (i) =>
-                i.dueToday ? (
+                i.payoutTodayStatus === "added" ? (
+                  <span className="text-emerald-400">+3% added</span>
+                ) : i.payoutTodayStatus === "pending" ? (
                   <span className="text-amber-400">Yes</span>
                 ) : (
                   <span className="text-zinc-600">No</span>
@@ -206,7 +209,7 @@ function InvestmentsContent() {
               cell: (i) =>
                 i.maturityAt ? (
                   <span className="text-zinc-300">
-                    {format(new Date(i.maturityAt), "MMM d, yyyy")}
+                    {format(new Date(i.maturityAt), "MMM d, yyyy HH:mm")}
                   </span>
                 ) : (
                   "—"

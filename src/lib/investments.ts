@@ -90,6 +90,35 @@ export function isPayoutScheduledToday(
   return manilaDateKey(nextPayout) === manilaDateKey(now);
 }
 
+export function wasAccruedToday(
+  bot: BotInvestmentData,
+  now = new Date()
+): boolean {
+  const lastAccruedAt = toDate(bot.lastAccruedAt);
+  if (!lastAccruedAt) return false;
+  return manilaDateKey(lastAccruedAt) === manilaDateKey(now);
+}
+
+export type PayoutTodayStatus = "pending" | "added" | null;
+
+/** Pending = payout due today (not yet credited). Added = 3% credited today. */
+export function getPayoutTodayStatus(
+  bot: BotInvestmentData,
+  now = new Date()
+): PayoutTodayStatus {
+  if (bot.status !== "active") return null;
+  if (wasAccruedToday(bot, now)) return "added";
+  if (isPayoutScheduledToday(bot, now)) return "pending";
+  return null;
+}
+
+export function isPayoutTodayView(
+  bot: BotInvestmentData,
+  now = new Date()
+): boolean {
+  return getPayoutTodayStatus(bot, now) !== null;
+}
+
 export function getNextPayoutAt(bot: BotInvestmentData): Date | null {
   if (bot.status !== "active" || inferDaysAccrued(bot) >= getTermDays(bot)) {
     return null;
@@ -207,6 +236,7 @@ export function enrichBotInvestment(
     dailyDue: due,
     totalAccrued: bot.totalAccrued ?? 0,
     dueToday: isDueForAccrual(bot),
+    payoutTodayStatus: getPayoutTodayStatus(bot),
     completingToday:
       bot.status === "active" &&
       daysAccrued === termDays - 1 &&
