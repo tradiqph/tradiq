@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Lock, Calendar, TrendingUp } from "lucide-react";
+import { Lock, Calendar, TrendingUp, Clock } from "lucide-react";
 import { BotScalpChart } from "@/components/bot/bot-scalp-chart";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import {
@@ -14,6 +14,26 @@ import { cn } from "@/lib/utils";
 
 interface UserBotCardProps {
   bot: UserBot & { id: string };
+}
+
+function formatManilaDateTime(value: unknown): string {
+  if (!value) return "—";
+  let date: Date | null = null;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof (value as { toDate?: () => Date }).toDate === "function") {
+    date = (value as { toDate: () => Date }).toDate();
+  }
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
 }
 
 export function UserBotCard({ bot }: UserBotCardProps) {
@@ -37,6 +57,10 @@ export function UserBotCard({ bot }: UserBotCardProps) {
   const maturityLabel = enriched.maturityAt
     ? format(new Date(enriched.maturityAt), "MMM d, yyyy")
     : "—";
+  const startedLabel = formatManilaDateTime(bot.subscribedAt);
+  const nextPayoutLabel = enriched.nextPayoutAt
+    ? formatManilaDateTime(new Date(enriched.nextPayoutAt))
+    : null;
 
   return (
     <div className="surface-flat mx-4 overflow-hidden">
@@ -68,6 +92,13 @@ export function UserBotCard({ bot }: UserBotCardProps) {
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg border border-white/5 bg-black/40 px-2.5 py-2">
             <p className="flex items-center gap-1 text-[10px] text-zinc-500">
+              <Clock className="h-3 w-3" />
+              Started
+            </p>
+            <p className="mt-0.5 font-medium text-white">{startedLabel}</p>
+          </div>
+          <div className="rounded-lg border border-white/5 bg-black/40 px-2.5 py-2">
+            <p className="flex items-center gap-1 text-[10px] text-zinc-500">
               <Calendar className="h-3 w-3" />
               Completes
             </p>
@@ -82,6 +113,17 @@ export function UserBotCard({ bot }: UserBotCardProps) {
               {formatPeso(enriched.dailyDue)} (3%)
             </p>
           </div>
+          {isActive && nextPayoutLabel && (
+            <div className="rounded-lg border border-white/5 bg-black/40 px-2.5 py-2">
+              <p className="flex items-center gap-1 text-[10px] text-zinc-500">
+                <Clock className="h-3 w-3" />
+                Next payout
+              </p>
+              <p className="mt-0.5 font-medium text-emerald-400">
+                {nextPayoutLabel}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-3">

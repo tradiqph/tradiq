@@ -1,5 +1,9 @@
 import { Firestore } from "firebase-admin/firestore";
-import { enrichBotInvestment } from "@/lib/investments";
+import {
+  dailyPayout,
+  enrichBotInvestment,
+  isPayoutScheduledToday,
+} from "@/lib/investments";
 import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 import {
   getReferralTotals,
@@ -77,7 +81,10 @@ export async function aggregateConsoleStats(db: Firestore) {
   let totalUnpaidCommissionLiability = 0;
   let todayLiability = 0;
   let dueTodayCount = 0;
+  let payoutsTodayLiability = 0;
+  let payoutsTodayCount = 0;
   let completingTodayCount = 0;
+  const now = new Date();
 
   for (const { userId, botId, data: bot } of activeBots) {
     activePrincipal += bot.amount ?? 0;
@@ -90,6 +97,13 @@ export async function aggregateConsoleStats(db: Firestore) {
     if (enriched.dueToday) {
       todayLiability += enriched.dailyDue;
       dueTodayCount += 1;
+    }
+    if (isPayoutScheduledToday(bot, now)) {
+      payoutsTodayLiability += dailyPayout(
+        bot.amount ?? 0,
+        bot.dailyRate ?? undefined
+      );
+      payoutsTodayCount += 1;
     }
     if (enriched.completingToday) {
       completingTodayCount += 1;
@@ -119,6 +133,8 @@ export async function aggregateConsoleStats(db: Firestore) {
     safeMoneyToUse,
     todayPayoutLiability: Math.round(todayLiability * 100) / 100,
     dueTodayCount,
+    payoutsTodayLiability: Math.round(payoutsTodayLiability * 100) / 100,
+    payoutsTodayCount,
     completingTodayCount,
     totalWallet: Math.round(totalWallet * 100) / 100,
     totalDeposit: Math.round(totalDeposit * 100) / 100,

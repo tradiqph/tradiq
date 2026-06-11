@@ -20,6 +20,8 @@ interface ConsoleStats {
   activePrincipal: number;
   todayPayoutLiability: number;
   dueTodayCount: number;
+  payoutsTodayCount: number;
+  payoutsTodayLiability: number;
   completingTodayCount: number;
   totalWallet: number;
   totalDeposit: number;
@@ -143,10 +145,13 @@ export default function ConsoleDashboardPage() {
           <div className="flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-amber-400" />
             <div>
-              <p className="font-medium text-white">Due today</p>
+              <p className="font-medium text-white">Payouts today</p>
               <p className="text-sm text-zinc-500">
-                {data.dueTodayCount} investments ·{" "}
-                <PesoAmount amount={data.todayPayoutLiability} gold />
+                {data.payoutsTodayCount} investments ·{" "}
+                <PesoAmount amount={data.payoutsTodayLiability} gold />
+                <span className="block text-[10px] text-zinc-600">
+                  Philippine time · 24h cycle
+                </span>
               </p>
             </div>
           </div>

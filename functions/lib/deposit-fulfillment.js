@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.fulfillPaidDeposit = fulfillPaidDeposit;
 const firestore_1 = require("firebase-admin/firestore");
-async function fulfillPaidDeposit(db, intentId, depositId) {
-    var _a, _b;
+async function fulfillPaidDeposit(db, intentId, depositId, expectedUserId) {
+    var _a, _b, _c;
     let depositDoc = null;
     if (depositId) {
         const direct = await db.collection("deposits").doc(depositId).get();
@@ -17,28 +17,40 @@ async function fulfillPaidDeposit(db, intentId, depositId) {
         const depositSnap = await db
             .collection("deposits")
             .where("paymongoIntentId", "==", intentId)
-            .where("status", "==", "pending")
-            .limit(1)
+            .limit(5)
             .get();
-        if (depositSnap.empty)
+        depositDoc =
+            (_c = depositSnap.docs.find((doc) => doc.data().status === "pending")) !== null && _c !== void 0 ? _c : null;
+        if (!depositDoc)
             return false;
-        depositDoc = depositSnap.docs[0];
     }
     const deposit = depositDoc.data();
     const userId = deposit.userId;
+    if (expectedUserId && userId !== expectedUserId) {
+        return false;
+    }
     const amount = deposit.amount;
     const resolvedDepositId = depositDoc.id;
-    await db.runTransaction(async (tx) => {
+    const depositRef = depositDoc.ref;
+    const credited = await db.runTransaction(async (tx) => {
+        var _a;
+        const freshDeposit = await tx.get(depositRef);
+        if (!freshDeposit.exists || ((_a = freshDeposit.data()) === null || _a === void 0 ? void 0 : _a.status) !== "pending") {
+            return false;
+        }
         const userRef = db.collection("users").doc(userId);
         const userSnap = await tx.get(userRef);
         if (!userSnap.exists)
-            return;
-        tx.update(depositDoc.ref, { status: "paid" });
+            return false;
+        tx.update(depositRef, { status: "paid" });
         tx.update(userRef, {
-            depositBalance: firestore_1.FieldValue.increment(amount),
+            walletBalance: firestore_1.FieldValue.increment(amount),
             totalDeposited: firestore_1.FieldValue.increment(amount),
         });
+        return true;
     });
+    if (!credited)
+        return false;
     const txRef = db
         .collection("users")
         .doc(userId)

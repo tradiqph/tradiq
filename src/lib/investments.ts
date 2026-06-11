@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { manilaDateKey } from "@/lib/manila-time";
 
 export const BOT_TERM_DAYS = 30;
 export const DAILY_BOT_RATE = 0.03;
@@ -68,6 +69,25 @@ export function isDueForAccrual(
   const lastAccruedAt = toDate(bot.lastAccruedAt);
   const anchor = lastAccruedAt ?? subscribedAt;
   return now.getTime() - anchor.getTime() >= MS_PER_DAY;
+}
+
+/** Console display: next 24h payout falls on today's Manila calendar date, or overdue unpaid. */
+export function isPayoutScheduledToday(
+  bot: BotInvestmentData,
+  now = new Date()
+): boolean {
+  if (bot.status !== "active") return false;
+
+  const daysAccrued = inferDaysAccrued(bot);
+  const termDays = getTermDays(bot);
+  if (daysAccrued >= termDays) return false;
+
+  if (isDueForAccrual(bot, now)) return true;
+
+  const nextPayout = getNextPayoutAt(bot);
+  if (!nextPayout) return false;
+
+  return manilaDateKey(nextPayout) === manilaDateKey(now);
 }
 
 export function getNextPayoutAt(bot: BotInvestmentData): Date | null {

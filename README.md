@@ -50,4 +50,4 @@ Point webhook to `https://your-domain.com/api/paymongo/webhook` with events:
 
 ## Daily Bot Earnings
 
-Cloud Function `dailyBotEarnings` runs at midnight Asia/Manila and credits 3% of active bot subscriptions to wallet balance.
+Cloud Function `dailyBotEarnings` runs every 15 minutes (Asia/Manila) and credits 3% per bot once each 24h cycle has elapsed. One-time backfill: `npm run accrual:run` (dry-run) or `npm run accrual:run -- --confirm`.
