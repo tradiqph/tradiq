@@ -13,11 +13,13 @@ import { GoldButton } from "@/components/ui/gold-button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import {
+  BOT_MIN_AMOUNT,
   BOT_PRESETS,
   BOT_TERM_DAYS,
   calculateBotTermProjection,
   DAILY_BOT_RATE,
   formatPeso,
+  validateBotSubscribeAmount,
 } from "@/lib/finance";
 import { subscribeBotOnClient } from "@/lib/bots";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,13 +44,14 @@ export function SubscribeBotModal({
 
   const available = profile?.walletBalance ?? 0;
   const num = parseFloat(amount) || 0;
+  const amountError = num > 0 ? validateBotSubscribeAmount(num) : null;
   const isEmpty = available <= 0;
   const projection =
-    num > 0 ? calculateBotTermProjection(num) : null;
+    num > 0 && !amountError ? calculateBotTermProjection(num) : null;
   const dailyRateLabel = `${Math.round(DAILY_BOT_RATE * 100)}%`;
 
   const handleConfirm = async () => {
-    if (!user || num <= 0 || num > available) return;
+    if (!user || num <= 0 || num > available || amountError) return;
     setLoading(true);
     try {
       const token = await user.getIdToken();
@@ -135,11 +138,18 @@ export function SubscribeBotModal({
           <Label className="text-zinc-400">AMOUNT (₱)</Label>
           <Input
             type="number"
+            min={BOT_MIN_AMOUNT}
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="mt-1 border-amber-500/20 bg-black text-lg text-white"
           />
+          <p className="mt-1 text-[10px] text-zinc-500">
+            Minimum subscription {formatPeso(BOT_MIN_AMOUNT)}
+          </p>
+          {amountError && (
+            <p className="mt-1 text-[10px] text-red-400">{amountError}</p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -267,7 +277,7 @@ export function SubscribeBotModal({
 
         <GoldButton
           onClick={handleConfirm}
-          disabled={loading || num <= 0 || num > available}
+          disabled={loading || num <= 0 || num > available || !!amountError}
           className="w-full"
         >
           Confirm Copy Trading Bot

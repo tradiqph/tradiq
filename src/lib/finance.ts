@@ -59,7 +59,7 @@ export function calculateDailyEarning(botAmount: number): number {
 
 export const DEPOSIT_MIN_AMOUNT = 500;
 export const DEPOSIT_MAX_AMOUNT = 10000;
-export const BOT_MIN_AMOUNT = 1;
+export const BOT_MIN_AMOUNT = 500;
 export const BOT_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_MIN_AMOUNT = 300;
 export const WITHDRAWAL_MAX_AMOUNT = 10000;
@@ -78,6 +78,9 @@ export function validateDepositAmount(amount: number): string | null {
 
 export function validateBotSubscribeAmount(amount: number): string | null {
   if (!amount || amount <= 0) return "Enter a valid amount";
+  if (amount < BOT_MIN_AMOUNT) {
+    return `Minimum subscription is ${formatPeso(BOT_MIN_AMOUNT)}`;
+  }
   if (amount > BOT_MAX_AMOUNT) {
     return `Maximum subscription is ${formatPeso(BOT_MAX_AMOUNT)} per bot`;
   }

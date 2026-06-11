@@ -27,7 +27,7 @@ export const depositAmountSchema = z
 export const botAmountSchema = z
   .number()
   .finite()
-  .min(BOT_MIN_AMOUNT, "Invalid amount")
+  .min(BOT_MIN_AMOUNT, `Minimum bot subscription is ₱${BOT_MIN_AMOUNT}`)
   .max(BOT_MAX_AMOUNT, `Maximum bot subscription is ₱${BOT_MAX_AMOUNT}`);
 
 export const withdrawalAmountSchema = z

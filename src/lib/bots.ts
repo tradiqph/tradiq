@@ -7,7 +7,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { DAILY_BOT_RATE } from "@/lib/finance";
+import { DAILY_BOT_RATE, validateBotSubscribeAmount } from "@/lib/finance";
 import { BOT_TERM_DAYS } from "@/lib/investments";
 
 async function clientBotSubscribeEnabled() {
@@ -22,7 +22,8 @@ async function clientBotSubscribeEnabled() {
 export async function subscribeBotOnClient(userId: string, amount: number) {
   const firestore = db;
   if (!firestore) throw new Error("Firebase not configured");
-  if (!amount || amount <= 0) throw new Error("Invalid amount");
+  const amountError = validateBotSubscribeAmount(amount);
+  if (amountError) throw new Error(amountError);
 
   const enabled = await clientBotSubscribeEnabled();
   if (!enabled) {
