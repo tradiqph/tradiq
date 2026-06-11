@@ -3,23 +3,18 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { AppHeader } from "@/components/layout/app-header";
-import { PesoAmount } from "@/components/ui/peso-amount";
-import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
-import { TimelineItem } from "@/components/ui/timeline-item";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TransactionListItem } from "@/components/wallet/transaction-list-item";
 import { useAuth } from "@/hooks/use-auth";
 import { usePendingDepositSync } from "@/hooks/use-pending-deposit-sync";
 import { useTransactions } from "@/hooks/use-transactions";
 import { groupTransactionsByDate } from "@/lib/group-transactions-by-date";
 import {
   filterTransactions,
-  getTransactionStatusBadge,
-  getTransactionTypeLabel,
   type TransactionFilter,
 } from "@/lib/transactions";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 const filters: { id: TransactionFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -90,50 +85,13 @@ export default function HistoryPage() {
           groups.map((group) => (
             <div key={group.label} className="mb-4">
               <SectionHeader title={group.label} />
-              {group.items.map((tx, i) => {
-                const statusBadge = getTransactionStatusBadge(tx.status);
-                const isInactive =
-                  tx.status === "expired" || tx.status === "rejected";
-
-                return (
-                  <TimelineItem
-                    key={tx.id}
-                    isLast={i === group.items.length - 1}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">
-                        {getTransactionTypeLabel(tx.type)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium capitalize text-white">
-                          {tx.title ?? tx.type.replace("_", " ")}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {tx.subtitle ??
-                            (tx.createdAt
-                              ? format(
-                                  tx.createdAt.toDate(),
-                                  "MMM d, yyyy, h:mm a"
-                                )
-                              : "")}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <PesoAmount
-                          amount={tx.amount}
-                          className={`text-sm ${isInactive ? "line-through text-zinc-500" : "text-white"}`}
-                        />
-                        <Badge
-                          variant={statusBadge.variant}
-                          className="mt-1 text-[10px] capitalize"
-                        >
-                          {statusBadge.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </TimelineItem>
-                );
-              })}
+              {group.items.map((tx, i) => (
+                <TransactionListItem
+                  key={tx.id}
+                  tx={tx}
+                  isLast={i === group.items.length - 1}
+                />
+              ))}
             </div>
           ))
         )}
