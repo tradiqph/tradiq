@@ -103,6 +103,7 @@ exports.dailyBotEarnings = (0, scheduler_1.onSchedule)({
 }, async () => {
     const db = (0, firestore_1.getFirestore)();
     const summary = await (0, bot_accrual_1.runBotAccrualBatch)(db);
+    await (0, bot_accrual_1.recordAccrualRun)(db, summary, "scheduler");
     console.log(`[dailyBotEarnings] due=${summary.dueCount} processed=${summary.processedCount}`);
 });
 //# sourceMappingURL=index.js.map

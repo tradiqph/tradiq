@@ -9,6 +9,17 @@ export function manilaDateKey(date: Date): string {
   }).format(date);
 }
 
+export function manilaTodayKey(): string {
+  return manilaDateKey(new Date());
+}
+
+const PAYOUT_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parsePayoutDayParam(value: string | null): string | undefined {
+  if (!value || !PAYOUT_DAY_RE.test(value)) return undefined;
+  return value;
+}
+
 export function addManilaDays(fromKey: string, days: number): string {
   const [y, m, d] = fromKey.split("-").map(Number);
   const base = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));

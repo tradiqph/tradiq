@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
 import { DataTable } from "@/components/console/data-table";
 import { MemberActionsMenu } from "@/components/console/member-actions-menu";
+import { MemberBotsSheet } from "@/components/console/member-bots-sheet";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useAuth } from "@/hooks/use-auth";
@@ -59,6 +60,7 @@ export default function ConsoleMembersPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [botsMember, setBotsMember] = useState<Member | null>(null);
 
   const { data: financialSummary } = useConsoleFetch<MembersFinancialSummary>(
     "/api/console/stats"
@@ -256,7 +258,18 @@ export default function ConsoleMembersPage() {
               {
                 key: "bots",
                 header: "Active bots",
-                cell: (m) => m.activeBots,
+                cell: (m) =>
+                  m.activeBots > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setBotsMember(m)}
+                      className="cursor-pointer font-semibold text-amber-400 hover:text-amber-300"
+                    >
+                      {m.activeBots}
+                    </button>
+                  ) : (
+                    <span className="text-zinc-400">0</span>
+                  ),
               },
               {
                 key: "since",
@@ -313,6 +326,22 @@ export default function ConsoleMembersPage() {
           </div>
         </div>
       )}
+
+      <MemberBotsSheet
+        open={botsMember !== null}
+        onOpenChange={(open) => {
+          if (!open) setBotsMember(null);
+        }}
+        member={
+          botsMember
+            ? {
+                id: botsMember.id,
+                displayName: botsMember.displayName,
+                email: botsMember.email,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

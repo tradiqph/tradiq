@@ -4,7 +4,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { fulfillPaidDeposit } from "./deposit-fulfillment";
-import { runBotAccrualBatch } from "./bot-accrual";
+import { recordAccrualRun, runBotAccrualBatch } from "./bot-accrual";
 
 initializeApp();
 
@@ -123,6 +123,7 @@ export const dailyBotEarnings = onSchedule(
   async () => {
     const db = getFirestore();
     const summary = await runBotAccrualBatch(db);
+    await recordAccrualRun(db, summary, "scheduler");
     console.log(
       `[dailyBotEarnings] due=${summary.dueCount} processed=${summary.processedCount}`
     );

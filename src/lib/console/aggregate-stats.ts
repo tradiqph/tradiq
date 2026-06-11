@@ -149,8 +149,9 @@ export async function aggregateConsoleStats(db: Firestore) {
 export async function fetchAllInvestments(
   db: Firestore,
   status: "active" | "completed" | "all" = "all",
-  dueTodayOnly = false
+  options: { payoutDay?: string } = {}
 ) {
+  const { payoutDay } = options;
   const botRefs =
     status === "all"
       ? await fetchAllUserBots(db, undefined, true)
@@ -173,10 +174,16 @@ export async function fetchAllInvestments(
   );
 
   const investments = botRefs.map(({ userId, botId, data }) =>
-    enrichBotInvestment(data, userId, botId, userMap.get(userId))
+    enrichBotInvestment(
+      data,
+      userId,
+      botId,
+      userMap.get(userId),
+      payoutDay
+    )
   );
 
-  const filtered = dueTodayOnly
+  const filtered = payoutDay
     ? investments.filter((i) => i.payoutTodayStatus !== null)
     : investments;
 
@@ -196,6 +203,14 @@ export async function fetchAllInvestments(
     ),
   };
 
+  const filterDayLiability = payoutDay
+    ? Math.round(
+        filtered
+          .filter((i) => i.payoutTodayStatus === "pending")
+          .reduce((s, i) => s + i.dailyDue, 0) * 100
+      ) / 100
+    : null;
+
   return {
     investments: filtered.sort((a, b) =>
       (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? "")
@@ -207,5 +222,12 @@ export async function fetchAllInvestments(
       remainingPayoutLiability:
         Math.round(summary.remainingPayoutLiability * 100) / 100,
     },
+    filter: payoutDay
+      ? {
+          payoutDay,
+          botCount: filtered.length,
+          liability: filterDayLiability,
+        }
+      : null,
   };
 }

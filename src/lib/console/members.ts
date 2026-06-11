@@ -3,6 +3,49 @@ import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 
 export const MEMBERS_PAGE_SIZE = 20;
 
+export interface MemberActiveBot {
+  id: string;
+  amount: number;
+  subscribedAt: string | null;
+}
+
+function toBotDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof (value as { toDate?: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate();
+  }
+  if (typeof (value as { seconds: number }).seconds === "number") {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+  return null;
+}
+
+export async function fetchMemberActiveBots(
+  db: Firestore,
+  userId: string
+): Promise<MemberActiveBot[]> {
+  const botsSnap = await db
+    .collection("users")
+    .doc(userId)
+    .collection("bots")
+    .get();
+
+  const bots: MemberActiveBot[] = [];
+  for (const botDoc of botsSnap.docs) {
+    const bot = botDoc.data();
+    if (bot.status !== "active") continue;
+    bots.push({
+      id: botDoc.id,
+      amount: bot.amount ?? 0,
+      subscribedAt: toBotDate(bot.subscribedAt)?.toISOString() ?? null,
+    });
+  }
+
+  bots.sort((a, b) => (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? ""));
+  return bots;
+}
+
 export function memberMatchesSearch(
   data: FirebaseFirestore.DocumentData,
   search: string

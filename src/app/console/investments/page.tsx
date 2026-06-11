@@ -1,41 +1,25 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { Calendar, X } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
-import { DataTable } from "@/components/console/data-table";
+import { MemberInvestmentsTable } from "@/components/console/member-investments-table";
 import { StatCard } from "@/components/console/stat-card";
-import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
+import { groupInvestmentsByMember } from "@/lib/console/investments-group";
 import { formatPeso } from "@/lib/finance";
+import {
+  formatManilaDateLabel,
+  manilaTodayKey,
+} from "@/lib/manila-time";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "active" | "completed" | "all";
 
-interface Investment {
-  id: string;
-  userId: string;
-  email: string;
-  displayName: string;
-  amount: number;
-  status: string;
-  daysAccrued: number;
-  termDays: number;
-  dailyDue: number;
-  totalAccrued: number;
-  dueToday: boolean;
-  payoutTodayStatus: "pending" | "added" | null;
-  completingToday: boolean;
-  subscribedAt: string | null;
-  lastAccruedAt: string | null;
-  nextPayoutAt: string | null;
-  maturityAt: string | null;
-  remainingPayout: number;
-}
-
 interface InvestmentsResponse {
-  investments: Investment[];
+  investments: Parameters<typeof groupInvestmentsByMember>[0];
   summary: {
     count: number;
     activePrincipal: number;
@@ -44,25 +28,78 @@ interface InvestmentsResponse {
     completingTodayCount: number;
     remainingPayoutLiability: number;
   };
+  filter: {
+    payoutDay: string;
+    botCount: number;
+    liability: number | null;
+  } | null;
+  accrualStatus?: {
+    lastRunAt: string | null;
+    dueCount: number;
+    processedCount: number;
+    source: string | null;
+    stale: boolean;
+  } | null;
 }
 
 function InvestmentsContent() {
   const searchParams = useSearchParams();
   const initialDueToday = searchParams.get("dueToday") === "true";
-  const [status, setStatus] = useState<StatusFilter>("active");
-  const [dueTodayOnly, setDueTodayOnly] = useState(initialDueToday);
+  const initialPayoutDay =
+    searchParams.get("payoutDay") ??
+    (initialDueToday ? manilaTodayKey() : "");
 
-  const url = `/api/console/investments?status=${status}${dueTodayOnly ? "&dueToday=true" : ""}`;
+  const [status, setStatus] = useState<StatusFilter>("active");
+  const [payoutDay, setPayoutDay] = useState(initialPayoutDay);
+  const dueTodayOnly = payoutDay === manilaTodayKey();
+
+  const url = useMemo(() => {
+    const params = new URLSearchParams({ status });
+    if (payoutDay) {
+      params.set("payoutDay", payoutDay);
+      if (dueTodayOnly) params.set("dueToday", "true");
+    }
+    return `/api/console/investments?${params}`;
+  }, [status, payoutDay, dueTodayOnly]);
+
   const { data, loading, error } = useConsoleFetch<InvestmentsResponse>(url, [
     status,
-    dueTodayOnly,
+    payoutDay,
   ]);
+
+  const memberGroups = useMemo(
+    () => groupInvestmentsByMember(data?.investments ?? []),
+    [data?.investments]
+  );
 
   const tabs: { key: StatusFilter; label: string }[] = [
     { key: "active", label: "Active" },
     { key: "completed", label: "Completed" },
     { key: "all", label: "All" },
   ];
+
+  const botsShownSub =
+    memberGroups.length > 0
+      ? `${data?.investments.length ?? 0} bots · ${memberGroups.length} members`
+      : data?.summary?.completingTodayCount
+        ? `${data.summary.completingTodayCount} completing today`
+        : undefined;
+
+  const dueColumnLabel = payoutDay
+    ? `Due ${formatManilaDateLabel(payoutDay)}`
+    : "Due today";
+
+  const liabilityLabel = payoutDay
+    ? `Liability · ${formatManilaDateLabel(payoutDay)}`
+    : "Today's liability";
+
+  const liabilityValue = payoutDay
+    ? formatPeso(data?.filter?.liability ?? 0)
+    : formatPeso(data?.summary?.todayLiability ?? 0);
+
+  const liabilitySub = payoutDay
+    ? `${data?.filter?.botCount ?? 0} bots on this day`
+    : `${data?.summary?.dueTodayCount ?? 0} due today`;
 
   return (
     <div className="space-y-6">
@@ -73,6 +110,18 @@ function InvestmentsContent() {
         </p>
       </div>
 
+      {data?.accrualStatus?.stale && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <p className="font-medium">Bot accrual automation may be down</p>
+          <p className="mt-1 text-xs text-amber-200/80">
+            {data.accrualStatus.lastRunAt
+              ? `Last successful accrual run: ${format(new Date(data.accrualStatus.lastRunAt), "MMM d, yyyy HH:mm")} (${data.accrualStatus.source ?? "unknown"}).`
+              : "No accrual run recorded yet. Deploy dailyBotEarnings or run npm run accrual:confirm."}
+            {" "}Scheduler should run every 15 minutes.
+          </p>
+        </div>
+      )}
+
       {data?.summary && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -80,9 +129,9 @@ function InvestmentsContent() {
             value={formatPeso(data.summary.activePrincipal)}
           />
           <StatCard
-            label="Today's liability"
-            value={formatPeso(data.summary.todayLiability)}
-            sub={`${data.summary.dueTodayCount} due today`}
+            label={liabilityLabel}
+            value={liabilityValue}
+            sub={liabilitySub}
           />
           <StatCard
             label="Remaining payout"
@@ -92,11 +141,7 @@ function InvestmentsContent() {
           <StatCard
             label="Bots shown"
             value={String(data.investments.length)}
-            sub={
-              data.summary.completingTodayCount > 0
-                ? `${data.summary.completingTodayCount} completing today`
-                : undefined
-            }
+            sub={botsShownSub}
           />
         </div>
       )}
@@ -117,15 +162,44 @@ function InvestmentsContent() {
             {t.label}
           </button>
         ))}
-        <label className="ml-2 flex items-center gap-2 text-xs text-zinc-400">
-          <input
-            type="checkbox"
-            checked={dueTodayOnly}
-            onChange={(e) => setDueTodayOnly(e.target.checked)}
-            className="accent-amber-500"
-          />
-          Due today only
-        </label>
+
+        <div className="ml-2 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs text-zinc-400">
+            <Calendar className="h-3.5 w-3.5 text-amber-400" />
+            <span className="sr-only">Payout day</span>
+            <input
+              type="date"
+              value={payoutDay}
+              onChange={(e) => setPayoutDay(e.target.value)}
+              className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-white [color-scheme:dark]"
+            />
+          </label>
+          {payoutDay && (
+            <button
+              type="button"
+              onClick={() => setPayoutDay("")}
+              className="flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-500 hover:text-white"
+            >
+              <X className="h-3 w-3" />
+              Clear
+            </button>
+          )}
+          <label className="flex items-center gap-2 text-xs text-zinc-400">
+            <input
+              type="checkbox"
+              checked={dueTodayOnly}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setPayoutDay(manilaTodayKey());
+                } else if (payoutDay === manilaTodayKey()) {
+                  setPayoutDay("");
+                }
+              }}
+              className="accent-amber-500"
+            />
+            Due today only
+          </label>
+        </div>
       </div>
 
       {loading ? (
@@ -133,98 +207,14 @@ function InvestmentsContent() {
       ) : error ? (
         <ConsoleError message={error} />
       ) : (
-        <DataTable
-          data={data?.investments ?? []}
-          rowKey={(i) => i.id}
-          emptyMessage="No bot investments found"
-          columns={[
-            {
-              key: "member",
-              header: "Member",
-              primary: true,
-              cell: (i) => (
-                <div>
-                  <p className="text-white">{i.displayName || i.email}</p>
-                  <p className="text-xs text-zinc-500">{i.email}</p>
-                </div>
-              ),
-            },
-            {
-              key: "principal",
-              header: "Principal",
-              cell: (i) => <PesoAmount amount={i.amount} gold />,
-            },
-            {
-              key: "day",
-              header: "Day",
-              cell: (i) => (
-                <span className="font-mono text-amber-400">
-                  {i.daysAccrued}/{i.termDays}
-                </span>
-              ),
-            },
-            {
-              key: "daily",
-              header: "Daily due",
-              cell: (i) => formatPeso(i.dailyDue),
-            },
-            {
-              key: "accrued",
-              header: "Total accrued",
-              cell: (i) => formatPeso(i.totalAccrued),
-            },
-            {
-              key: "remaining",
-              header: "Remaining payout",
-              cell: (i) =>
-                i.status === "active" ? (
-                  <PesoAmount amount={i.remainingPayout} />
-                ) : (
-                  <span className="text-zinc-600">—</span>
-                ),
-            },
-            {
-              key: "due",
-              header: "Due today",
-              cell: (i) =>
-                i.payoutTodayStatus === "added" ? (
-                  <span className="text-emerald-400">+3% added</span>
-                ) : i.payoutTodayStatus === "pending" ? (
-                  <span className="text-amber-400">Yes</span>
-                ) : (
-                  <span className="text-zinc-600">No</span>
-                ),
-            },
-            {
-              key: "last",
-              header: "Last payout",
-              cell: (i) =>
-                i.lastAccruedAt
-                  ? format(new Date(i.lastAccruedAt), "MMM d, HH:mm")
-                  : "—",
-            },
-            {
-              key: "maturity",
-              header: "Maturity",
-              cell: (i) =>
-                i.maturityAt ? (
-                  <span className="text-zinc-300">
-                    {format(new Date(i.maturityAt), "MMM d, yyyy HH:mm")}
-                  </span>
-                ) : (
-                  "—"
-                ),
-            },
-            {
-              key: "status",
-              header: "Status",
-              cell: (i) => (
-                <span className="text-xs capitalize text-zinc-400">
-                  {i.status}
-                </span>
-              ),
-            },
-          ]}
+        <MemberInvestmentsTable
+          groups={memberGroups}
+          dueColumnLabel={dueColumnLabel}
+          emptyMessage={
+            payoutDay
+              ? `No bot payouts on ${formatManilaDateLabel(payoutDay)}`
+              : "No bot investments found"
+          }
         />
       )}
     </div>

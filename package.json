@@ -10,6 +10,7 @@
     "seed:firestore": "node scripts/seed-firestore.mjs",
     "reset:financials": "node scripts/reset-financials.mjs",
     "accrual:run": "npm run build --prefix functions && node scripts/run-bot-accrual.mjs",
+    "accrual:confirm": "npm run build --prefix functions && node scripts/run-bot-accrual.mjs --confirm",
     "firebase:deploy:rules": "npx -y firebase-tools@latest deploy --only firestore",
     "firebase:deploy:support": "npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes,storage"
   },

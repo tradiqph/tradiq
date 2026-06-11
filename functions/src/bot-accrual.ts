@@ -177,6 +177,23 @@ export interface BotAccrualBatchSummary {
   results: BotAccrualResult[];
 }
 
+/** Ops visibility for console — server writes only. */
+export async function recordAccrualRun(
+  db: Firestore,
+  summary: BotAccrualBatchSummary,
+  source: "scheduler" | "manual"
+): Promise<void> {
+  await db.collection("platform").doc("accrual").set(
+    {
+      lastRunAt: FieldValue.serverTimestamp(),
+      dueCount: summary.dueCount,
+      processedCount: summary.processedCount,
+      source,
+    },
+    { merge: true }
+  );
+}
+
 /** Process at most one accrual per due active bot. */
 export async function runBotAccrualBatch(
   db: Firestore,

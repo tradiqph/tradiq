@@ -102,14 +102,36 @@ export function wasAccruedToday(
 export type PayoutTodayStatus = "pending" | "added" | null;
 
 /** Pending = payout due today (not yet credited). Added = 3% credited today. */
+/** Payout status for a specific Manila calendar day (pending or already credited). */
+export function getPayoutStatusForDate(
+  bot: BotInvestmentData,
+  dateKey: string,
+  now = new Date()
+): PayoutTodayStatus {
+  if (bot.status !== "active") return null;
+
+  const lastAccruedAt = toDate(bot.lastAccruedAt);
+  if (lastAccruedAt && manilaDateKey(lastAccruedAt) === dateKey) {
+    return "added";
+  }
+
+  if (dateKey === manilaDateKey(now) && isDueForAccrual(bot, now)) {
+    return "pending";
+  }
+
+  const nextPayout = getNextPayoutAt(bot);
+  if (nextPayout && manilaDateKey(nextPayout) === dateKey) {
+    return "pending";
+  }
+
+  return null;
+}
+
 export function getPayoutTodayStatus(
   bot: BotInvestmentData,
   now = new Date()
 ): PayoutTodayStatus {
-  if (bot.status !== "active") return null;
-  if (wasAccruedToday(bot, now)) return "added";
-  if (isPayoutScheduledToday(bot, now)) return "pending";
-  return null;
+  return getPayoutStatusForDate(bot, manilaDateKey(now), now);
 }
 
 export function isPayoutTodayView(
@@ -217,7 +239,8 @@ export function enrichBotInvestment(
   bot: BotInvestmentData,
   userId: string,
   botId: string,
-  user?: ConsoleInvestmentUserMeta
+  user?: ConsoleInvestmentUserMeta,
+  viewDateKey?: string
 ) {
   const daysAccrued = inferDaysAccrued(bot);
   const termDays = getTermDays(bot);
@@ -236,7 +259,9 @@ export function enrichBotInvestment(
     dailyDue: due,
     totalAccrued: bot.totalAccrued ?? 0,
     dueToday: isDueForAccrual(bot),
-    payoutTodayStatus: getPayoutTodayStatus(bot),
+    payoutTodayStatus: viewDateKey
+      ? getPayoutStatusForDate(bot, viewDateKey)
+      : getPayoutTodayStatus(bot),
     completingToday:
       bot.status === "active" &&
       daysAccrued === termDays - 1 &&

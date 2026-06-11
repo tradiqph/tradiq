@@ -2,8 +2,8 @@
  * Run one bot accrual pass (max one payout per due active bot).
  *
  * Usage:
- *   npm run accrual:run              # dry-run — list bots due for 24h+ payout
- *   npm run accrual:run -- --confirm # execute accruals
+ *   npm run accrual:run       # dry-run — list bots due for 24h+ payout
+ *   npm run accrual:confirm   # execute accruals
  */
 import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
@@ -17,6 +17,7 @@ const { initializeApp, cert, getApps } = requireFromFunctions("firebase-admin/ap
 const { getFirestore } = requireFromFunctions("firebase-admin/firestore");
 const {
   runBotAccrualBatch,
+  recordAccrualRun,
   isDueForAccrual,
   toDate,
 } = requireFromFunctions("./bot-accrual.js");
@@ -74,6 +75,35 @@ function formatManila(date) {
   }).format(date);
 }
 
+async function summarizeActiveBots(db, now) {
+  const botsSnap = await db
+    .collectionGroup("bots")
+    .where("status", "==", "active")
+    .get();
+
+  let notDueYet = 0;
+  let waitingNextCycle = 0;
+
+  for (const botDoc of botsSnap.docs) {
+    const bot = botDoc.data();
+    if (isDueForAccrual(bot, now)) continue;
+
+    const lastAccruedAt = toDate(bot.lastAccruedAt);
+    const daysAccrued = bot.daysAccrued ?? 0;
+    if (daysAccrued > 0 || lastAccruedAt) {
+      waitingNextCycle += 1;
+    } else {
+      notDueYet += 1;
+    }
+  }
+
+  return {
+    totalActive: botsSnap.size,
+    notDueYet,
+    waitingNextCycle,
+  };
+}
+
 async function listDueBots(db, now) {
   const botsSnap = await db
     .collectionGroup("bots")
@@ -114,10 +144,16 @@ async function main() {
   const db = initAdmin(env);
   const now = new Date();
 
-  const dueBots = await listDueBots(db, now);
+  const [dueBots, activeSummary] = await Promise.all([
+    listDueBots(db, now),
+    summarizeActiveBots(db, now),
+  ]);
 
   if (dueBots.length === 0) {
     console.log("No active bots are due for accrual (24h+ since subscribe/last payout).");
+    console.log(
+      `Active bots: ${activeSummary.totalActive} — ${activeSummary.notDueYet} not yet 24h from subscribe, ${activeSummary.waitingNextCycle} waiting for next 24h cycle.`
+    );
     return;
   }
 
@@ -129,13 +165,18 @@ async function main() {
     console.log(`  subscribed: ${row.subscribedAt} | last accrual: ${row.lastAccruedAt}`);
   }
 
+  console.log(
+    `\nSkipped: ${activeSummary.waitingNextCycle} already paid (waiting next 24h), ${activeSummary.notDueYet} not yet 24h from subscribe.`
+  );
+
   if (!confirmed) {
-    console.log("\nDry run only. Re-run with --confirm to credit wallets.");
+    console.log("\nDry run only. Re-run with: npm run accrual:confirm");
     return;
   }
 
   console.log("\nProcessing accruals...");
   const summary = await runBotAccrualBatch(db, now);
+  await recordAccrualRun(db, summary, "manual");
   console.log(`Done. due=${summary.dueCount} processed=${summary.processedCount}`);
 
   for (const result of summary.results) {

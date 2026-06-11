@@ -5,6 +5,7 @@ exports.toDate = toDate;
 exports.inferDaysAccrued = inferDaysAccrued;
 exports.isDueForAccrual = isDueForAccrual;
 exports.processOneBotAccrual = processOneBotAccrual;
+exports.recordAccrualRun = recordAccrualRun;
 exports.runBotAccrualBatch = runBotAccrualBatch;
 const firestore_1 = require("firebase-admin/firestore");
 exports.DAILY_BOT_RATE = 0.03;
@@ -139,6 +140,15 @@ async function processOneBotAccrual(db, botDocRef, now) {
         newDaysAccrued,
         completed: isComplete,
     };
+}
+/** Ops visibility for console — server writes only. */
+async function recordAccrualRun(db, summary, source) {
+    await db.collection("platform").doc("accrual").set({
+        lastRunAt: firestore_1.FieldValue.serverTimestamp(),
+        dueCount: summary.dueCount,
+        processedCount: summary.processedCount,
+        source,
+    }, { merge: true });
 }
 /** Process at most one accrual per due active bot. */
 async function runBotAccrualBatch(db, now = new Date()) {
