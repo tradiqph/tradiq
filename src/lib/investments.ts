@@ -53,6 +53,27 @@ export function daysRemaining(bot: BotInvestmentData): number {
   return Math.max(0, getTermDays(bot) - inferDaysAccrued(bot));
 }
 
+/** payoutIndex 1 = first payout, due 24h after subscribe. */
+export function getScheduledPayoutAt(
+  subscribedAt: Date,
+  payoutIndex: number
+): Date {
+  return new Date(subscribedAt.getTime() + payoutIndex * MS_PER_DAY);
+}
+
+function wasPayoutAddedOnDate(
+  subscribedAt: Date,
+  daysAccrued: number,
+  dateKey: string
+): boolean {
+  for (let k = 1; k <= daysAccrued; k++) {
+    if (manilaDateKey(getScheduledPayoutAt(subscribedAt, k)) === dateKey) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isDueForAccrual(
   bot: BotInvestmentData,
   now = new Date()
@@ -66,9 +87,8 @@ export function isDueForAccrual(
   const subscribedAt = toDate(bot.subscribedAt);
   if (!subscribedAt) return false;
 
-  const lastAccruedAt = toDate(bot.lastAccruedAt);
-  const anchor = lastAccruedAt ?? subscribedAt;
-  return now.getTime() - anchor.getTime() >= MS_PER_DAY;
+  const nextDue = getScheduledPayoutAt(subscribedAt, daysAccrued + 1);
+  return now.getTime() >= nextDue.getTime();
 }
 
 /** Console display: next 24h payout falls on today's Manila calendar date, or overdue unpaid. */
@@ -94,9 +114,17 @@ export function wasAccruedToday(
   bot: BotInvestmentData,
   now = new Date()
 ): boolean {
-  const lastAccruedAt = toDate(bot.lastAccruedAt);
-  if (!lastAccruedAt) return false;
-  return manilaDateKey(lastAccruedAt) === manilaDateKey(now);
+  const subscribedAt = toDate(bot.subscribedAt);
+  if (!subscribedAt) return false;
+
+  const daysAccrued = inferDaysAccrued(bot);
+  if (daysAccrued === 0) return false;
+
+  return wasPayoutAddedOnDate(
+    subscribedAt,
+    daysAccrued,
+    manilaDateKey(now)
+  );
 }
 
 export type PayoutTodayStatus = "pending" | "added" | null;
@@ -110,8 +138,11 @@ export function getPayoutStatusForDate(
 ): PayoutTodayStatus {
   if (bot.status !== "active") return null;
 
-  const lastAccruedAt = toDate(bot.lastAccruedAt);
-  if (lastAccruedAt && manilaDateKey(lastAccruedAt) === dateKey) {
+  const subscribedAt = toDate(bot.subscribedAt);
+  if (!subscribedAt) return null;
+
+  const daysAccrued = inferDaysAccrued(bot);
+  if (wasPayoutAddedOnDate(subscribedAt, daysAccrued, dateKey)) {
     return "added";
   }
 
@@ -149,9 +180,8 @@ export function getNextPayoutAt(bot: BotInvestmentData): Date | null {
   const subscribedAt = toDate(bot.subscribedAt);
   if (!subscribedAt) return null;
 
-  const lastAccruedAt = toDate(bot.lastAccruedAt);
-  const anchor = lastAccruedAt ?? subscribedAt;
-  return new Date(anchor.getTime() + MS_PER_DAY);
+  const daysAccrued = inferDaysAccrued(bot);
+  return getScheduledPayoutAt(subscribedAt, daysAccrued + 1);
 }
 
 /** When the final payout (day 30) and principal return occur. */
@@ -160,16 +190,15 @@ export function getMaturityAt(bot: BotInvestmentData): Date | null {
   if (!subscribedAt) return null;
 
   const termDays = getTermDays(bot);
-  const daysAccrued = inferDaysAccrued(bot);
   const lastAccruedAt = toDate(bot.lastAccruedAt);
 
   if (bot.status === "completed") {
-    return lastAccruedAt ?? new Date(subscribedAt.getTime() + termDays * MS_PER_DAY);
+    return (
+      lastAccruedAt ?? getScheduledPayoutAt(subscribedAt, termDays)
+    );
   }
 
-  const payoutsRemaining = Math.max(0, termDays - daysAccrued);
-  const anchor = lastAccruedAt ?? subscribedAt;
-  return new Date(anchor.getTime() + payoutsRemaining * MS_PER_DAY);
+  return getScheduledPayoutAt(subscribedAt, termDays);
 }
 
 export interface ScheduledPayout {
@@ -190,19 +219,13 @@ export function getRemainingScheduledPayouts(
   if (remaining === 0) return [];
 
   const due = dailyPayout(bot.amount, bot.dailyRate ?? DAILY_BOT_RATE);
-  let payoutDate = getNextPayoutAt(bot);
-
-  if (!payoutDate) {
-    const subscribedAt = toDate(bot.subscribedAt);
-    if (!subscribedAt) return [];
-    const lastAccruedAt = toDate(bot.lastAccruedAt);
-    const anchor = lastAccruedAt ?? subscribedAt;
-    payoutDate = new Date(anchor.getTime() + MS_PER_DAY);
-  }
+  const payoutDate = getNextPayoutAt(bot);
+  if (!payoutDate) return [];
 
   const results: ScheduledPayout[] = [];
+  let cursor = payoutDate;
   for (let i = 0; i < remaining; i++) {
-    const dateKey = dateKeyFn(payoutDate);
+    const dateKey = dateKeyFn(cursor);
     if (dateKey >= windowStartKey && dateKey <= windowEndKey) {
       const isMaturity = i === remaining - 1;
       results.push({
@@ -211,7 +234,7 @@ export function getRemainingScheduledPayouts(
         principal: isMaturity ? bot.amount : 0,
       });
     }
-    payoutDate = new Date(payoutDate.getTime() + MS_PER_DAY);
+    cursor = new Date(cursor.getTime() + MS_PER_DAY);
   }
 
   return results;

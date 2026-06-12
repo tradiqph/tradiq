@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BOT_TERM_DAYS = exports.DAILY_BOT_RATE = void 0;
 exports.toDate = toDate;
 exports.inferDaysAccrued = inferDaysAccrued;
+exports.getScheduledPayoutAt = getScheduledPayoutAt;
 exports.isDueForAccrual = isDueForAccrual;
 exports.processOneBotAccrual = processOneBotAccrual;
 exports.recordAccrualRun = recordAccrualRun;
@@ -38,6 +39,10 @@ function inferDaysAccrued(bot) {
     const termDays = (_b = bot.termDays) !== null && _b !== void 0 ? _b : exports.BOT_TERM_DAYS;
     return Math.min(termDays, Math.round(totalAccrued / perDay));
 }
+/** payoutIndex 1 = first payout, due 24h after subscribe. */
+function getScheduledPayoutAt(subscribedAt, payoutIndex) {
+    return new Date(subscribedAt.getTime() + payoutIndex * MS_PER_DAY);
+}
 function isDueForAccrual(bot, now) {
     var _a;
     if (bot.status !== "active")
@@ -49,9 +54,8 @@ function isDueForAccrual(bot, now) {
     const subscribedAt = toDate(bot.subscribedAt);
     if (!subscribedAt)
         return false;
-    const lastAccruedAt = toDate(bot.lastAccruedAt);
-    const anchor = lastAccruedAt !== null && lastAccruedAt !== void 0 ? lastAccruedAt : subscribedAt;
-    return now.getTime() - anchor.getTime() >= MS_PER_DAY;
+    const nextDue = getScheduledPayoutAt(subscribedAt, daysAccrued + 1);
+    return now.getTime() >= nextDue.getTime();
 }
 /** Credit exactly one day of bot interest (and principal on final day). */
 async function processOneBotAccrual(db, botDocRef, now) {
@@ -96,6 +100,9 @@ async function processOneBotAccrual(db, botDocRef, now) {
         const freshTermDays = (_a = bot.termDays) !== null && _a !== void 0 ? _a : exports.BOT_TERM_DAYS;
         const nextDaysAccrued = freshDaysAccrued + 1;
         const complete = nextDaysAccrued >= freshTermDays;
+        const subscribedAt = toDate(bot.subscribedAt);
+        if (!subscribedAt)
+            return;
         let walletIncrement = earning;
         if (complete) {
             walletIncrement += amount;
@@ -104,7 +111,7 @@ async function processOneBotAccrual(db, botDocRef, now) {
             walletBalance: firestore_1.FieldValue.increment(walletIncrement),
             totalEarnings: firestore_1.FieldValue.increment(earning),
         });
-        tx.update(botDocRef, Object.assign({ totalAccrued: firestore_1.FieldValue.increment(earning), daysAccrued: nextDaysAccrued, lastAccruedAt: firestore_1.FieldValue.serverTimestamp() }, (complete ? { status: "completed" } : {})));
+        tx.update(botDocRef, Object.assign({ totalAccrued: firestore_1.FieldValue.increment(earning), daysAccrued: nextDaysAccrued, lastAccruedAt: firestore_1.Timestamp.fromDate(getScheduledPayoutAt(subscribedAt, nextDaysAccrued)) }, (complete ? { status: "completed" } : {})));
         tx.set(userRef.collection("transactions").doc(), {
             type: "earning",
             amount: earning,

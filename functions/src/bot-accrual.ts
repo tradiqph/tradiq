@@ -2,6 +2,7 @@ import {
   FieldValue,
   Firestore,
   DocumentReference,
+  Timestamp,
 } from "firebase-admin/firestore";
 
 export const DAILY_BOT_RATE = 0.03;
@@ -33,6 +34,14 @@ export function inferDaysAccrued(
   return Math.min(termDays, Math.round(totalAccrued / perDay));
 }
 
+/** payoutIndex 1 = first payout, due 24h after subscribe. */
+export function getScheduledPayoutAt(
+  subscribedAt: Date,
+  payoutIndex: number
+): Date {
+  return new Date(subscribedAt.getTime() + payoutIndex * MS_PER_DAY);
+}
+
 export function isDueForAccrual(
   bot: FirebaseFirestore.DocumentData,
   now: Date
@@ -46,9 +55,8 @@ export function isDueForAccrual(
   const subscribedAt = toDate(bot.subscribedAt);
   if (!subscribedAt) return false;
 
-  const lastAccruedAt = toDate(bot.lastAccruedAt);
-  const anchor = lastAccruedAt ?? subscribedAt;
-  return now.getTime() - anchor.getTime() >= MS_PER_DAY;
+  const nextDue = getScheduledPayoutAt(subscribedAt, daysAccrued + 1);
+  return now.getTime() >= nextDue.getTime();
 }
 
 export interface BotAccrualResult {
@@ -113,6 +121,9 @@ export async function processOneBotAccrual(
     const nextDaysAccrued = freshDaysAccrued + 1;
     const complete = nextDaysAccrued >= freshTermDays;
 
+    const subscribedAt = toDate(bot.subscribedAt);
+    if (!subscribedAt) return;
+
     let walletIncrement = earning;
     if (complete) {
       walletIncrement += amount;
@@ -126,7 +137,9 @@ export async function processOneBotAccrual(
     tx.update(botDocRef, {
       totalAccrued: FieldValue.increment(earning),
       daysAccrued: nextDaysAccrued,
-      lastAccruedAt: FieldValue.serverTimestamp(),
+      lastAccruedAt: Timestamp.fromDate(
+        getScheduledPayoutAt(subscribedAt, nextDaysAccrued)
+      ),
       ...(complete ? { status: "completed" } : {}),
     });
 
