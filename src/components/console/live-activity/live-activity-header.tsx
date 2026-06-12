@@ -66,14 +66,34 @@ export function LiveActivityHeader({
           </p>
           <p className="mt-0.5 text-[10px] text-zinc-600">updates with session profits</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+        <div
+          className={cn(
+            "rounded-xl border p-3",
+            sessionPnlUsd >= 0
+              ? "border-emerald-500/20 bg-emerald-500/5"
+              : "border-red-500/20 bg-red-500/5"
+          )}
+        >
           <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
             Session P&amp;L
           </p>
-          <p className="mt-1 font-mono text-lg font-bold text-emerald-400 sm:text-xl">
-            +${formatSessionPnlUsd(sessionPnlUsd)}
+          <p
+            className={cn(
+              "mt-1 font-mono text-lg font-bold sm:text-xl",
+              sessionPnlUsd >= 0 ? "text-emerald-400" : "text-red-400"
+            )}
+          >
+            {sessionPnlUsd >= 0 ? "+" : "-"}$
+            {formatSessionPnlUsd(Math.abs(sessionPnlUsd))}
           </p>
-          <p className="mt-0.5 text-[10px] text-emerald-600/80">this session</p>
+          <p
+            className={cn(
+              "mt-0.5 text-[10px]",
+              sessionPnlUsd >= 0 ? "text-emerald-600/80" : "text-red-600/80"
+            )}
+          >
+            this session
+          </p>
         </div>
         <div className="rounded-xl border border-white/5 bg-black/60 p-3">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">

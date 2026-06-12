@@ -8,6 +8,7 @@ export type TradeLogKind =
   | "SELL"
   | "EXECUTED"
   | "PROFIT"
+  | "LOSS"
   | "MONITOR"
   | "SUB";
 
@@ -19,7 +20,7 @@ export interface LiveActivityLogEntry {
   isNew?: boolean;
   /** Investment logs only — for dedup */
   investmentKey?: string;
-  /** PROFIT rows only — drives session P&L and AUM */
+  /** Signed P&L on PROFIT (positive) / LOSS (negative) rows — drives session P&L and AUM */
   profitUsd?: number;
 }
 
@@ -44,3 +45,5 @@ export const TRADE_KINDS: TradeLogKind[] = [
 ];
 
 export const PROFIT_KINDS: TradeLogKind[] = ["PROFIT"];
+
+export const PNL_KINDS: TradeLogKind[] = ["PROFIT", "LOSS"];

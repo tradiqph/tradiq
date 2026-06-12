@@ -40,7 +40,7 @@ export function formatPresentationPeso(amount: number): string {
 }
 
 export function randomSessionPnlBase(seed: number): number {
-  return 1000 + (Math.abs(seed) % 9000);
+  return 600 + (Math.abs(seed) % 1200);
 }
 
 export function computePresentationWinRate(

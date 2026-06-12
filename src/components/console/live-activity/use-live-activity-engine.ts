@@ -28,13 +28,12 @@ import type {
   LiveActivityTab,
 } from "@/components/console/live-activity/live-activity-types";
 import {
-  PROFIT_KINDS,
+  PNL_KINDS,
   TRADE_KINDS,
 } from "@/components/console/live-activity/live-activity-types";
 
 const MAX_TRADE_LOGS = 200;
 const POLL_MS = 15_000;
-const WIN_ROLL_PROBABILITY = 0.94;
 
 interface InvestmentsResponse {
   investments: ConsoleBotInvestment[];
@@ -76,7 +75,7 @@ function filterLogs(
     case "investments":
       return investmentLogs;
     case "profits":
-      return tradeLogs.filter((l) => PROFIT_KINDS.includes(l.kind));
+      return tradeLogs.filter((l) => PNL_KINDS.includes(l.kind));
     case "trades":
       return tradeLogs.filter((l) => TRADE_KINDS.includes(l.kind));
     default:
@@ -104,17 +103,22 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
       let tradesExecuted = prev.tradesExecuted;
       let winningTrades = prev.winningTrades;
       let aumTickFlash = false;
-      const statRng = createSimulatorRng(prev.rngSeed + tradesExecuted);
 
       for (const e of entries) {
-        if (e.kind === "PROFIT" && e.profitUsd != null && e.profitUsd > 0) {
-          sessionPnlUsd = Math.round((sessionPnlUsd + e.profitUsd) * 100) / 100;
-          aumPhp = Math.round((aumPhp + usdProfitToPhp(e.profitUsd)) * 100) / 100;
-          aumTickFlash = true;
-          tradesExecuted += 1;
-          if (statRng() < WIN_ROLL_PROBABILITY) {
-            winningTrades += 1;
-          }
+        const isClosed =
+          (e.kind === "PROFIT" || e.kind === "LOSS") &&
+          e.profitUsd != null &&
+          e.profitUsd !== 0;
+        if (!isClosed) continue;
+
+        sessionPnlUsd =
+          Math.round((sessionPnlUsd + e.profitUsd!) * 100) / 100;
+        aumPhp =
+          Math.round((aumPhp + usdProfitToPhp(e.profitUsd!)) * 100) / 100;
+        aumTickFlash = true;
+        tradesExecuted += 1;
+        if (e.kind === "PROFIT" && e.profitUsd! > 0) {
+          winningTrades += 1;
         }
       }
 
@@ -197,7 +201,7 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/console/investments?status=all", {
+      const res = await fetch("/api/console/live-activity/investments", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
@@ -295,6 +299,8 @@ export function kindColor(kind: LiveActivityLogEntry["kind"]): string {
       return "text-zinc-400";
     case "PROFIT":
       return "text-emerald-300";
+    case "LOSS":
+      return "text-red-400";
     case "MONITOR":
       return "text-zinc-500";
     case "SUB":

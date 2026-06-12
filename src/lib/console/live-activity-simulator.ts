@@ -6,6 +6,9 @@ const BOT_NAMES = BOTS_CATALOG_SEED.map((b) => b.name);
 const TOKENS = ["SOL", "BNB", "ETH", "AVAX", "RAY", "WIF", "JUP", "TRUMP", "ZEST", "SLX"];
 const POOLS = ["BSC liquidity pools", "SOL/USDT pairs", "RAY pools", "DEX pairs", "mid-cap alts"];
 
+/** Aligned with presentation baseline win rate (~92%). */
+const CLOSED_WIN_PROBABILITY = 0.92;
+
 let seq = 0;
 
 function nextId(): string {
@@ -32,27 +35,61 @@ function fmtPct(n: number): string {
   return n.toFixed(2);
 }
 
-function randomProfit(rng: () => number): { profit: number; pct: number } {
-  const roll = rng();
-  let profit: number;
-  if (roll < 0.6) {
-    profit = 1000 + rng() * 9000;
-  } else if (roll < 0.9) {
-    profit = 10_000 + rng() * 90_000;
-  } else {
-    profit = 100_000 + rng() * 899_999;
+function randomWinAmount(rng: () => number): number {
+  if (rng() < 0.05) {
+    return Math.round((500 + rng() * 350) * 100) / 100;
   }
-  return {
-    profit: Math.round(profit * 100) / 100,
-    pct: 0.06 + rng() * 0.32,
-  };
+  return Math.round((200 + rng() * 300) * 100) / 100;
+}
+
+function randomLossAmount(rng: () => number): number {
+  return Math.round((120 + rng() * 300) * 100) / 100;
+}
+
+function rollClosedPosition(rng: () => number): {
+  won: boolean;
+  amount: number;
+  pct: number;
+} {
+  const won = rng() < CLOSED_WIN_PROBABILITY;
+  const pct = won ? 0.06 + rng() * 0.32 : 0.04 + rng() * 0.22;
+  const amount = won ? randomWinAmount(rng) : randomLossAmount(rng);
+  return { won, amount, pct };
 }
 
 function randomNotional(rng: () => number): { qty: number; price: number; usd: number } {
-  const usd = 50_000 + rng() * 800_000;
+  const usd = 8_000 + rng() * 37_000;
   const price = 0.05 + rng() * 4.5;
   const qty = usd / price;
   return { qty, price, usd };
+}
+
+function buildClosedPositionEntry(
+  rng: () => number,
+  bot: string,
+  now: Date
+): LiveActivityLogEntry {
+  const { won, amount, pct } = rollClosedPosition(rng);
+
+  if (won) {
+    return {
+      id: nextId(),
+      kind: "PROFIT",
+      message: ` +$${fmtUsd(amount)} (+${fmtPct(pct)}%) · position closed · ${bot}`,
+      timestamp: now,
+      isNew: true,
+      profitUsd: amount,
+    };
+  }
+
+  return {
+    id: nextId(),
+    kind: "LOSS",
+    message: ` -$${fmtUsd(amount)} (-${fmtPct(pct)}%) · stop hit · ${bot}`,
+    timestamp: now,
+    isNew: true,
+    profitUsd: -amount,
+  };
 }
 
 export function createSimulatorRng(seed: number): () => number {
@@ -82,7 +119,6 @@ export function generateTradeLog(
   ] as TradeLogKind[]);
 
   let message = "";
-  let profitUsd: number | undefined;
 
   switch (roll) {
     case "SCAN":
@@ -113,12 +149,8 @@ export function generateTradeLog(
     case "EXECUTED":
       message = `: Trade confirmed on-chain · ${bot}`;
       break;
-    case "PROFIT": {
-      const { profit, pct } = randomProfit(rng);
-      profitUsd = Math.round(profit * 100) / 100;
-      message = ` +$${fmtUsd(profitUsd)} (+${fmtPct(pct)}%) · position closed · ${bot}`;
-      break;
-    }
+    case "PROFIT":
+      return buildClosedPositionEntry(rng, bot, now);
     default:
       message = `: ${bot} active`;
   }
@@ -129,18 +161,34 @@ export function generateTradeLog(
     message,
     timestamp: now,
     isNew: true,
-    profitUsd,
   };
 }
 
-/** BUY → EXECUTED → PROFIT chain for burst mode */
+/** BUY → EXECUTED → PROFIT or LOSS chain for burst mode */
 export function generateTradeBurst(rng: () => number): LiveActivityLogEntry[] {
   const bot = pick(rng, BOT_NAMES);
   const token = pick(rng, TOKENS);
   const { qty, price, usd } = randomNotional(rng);
-  const { profit, pct } = randomProfit(rng);
-  const profitUsd = profit;
+  const { won, amount, pct } = rollClosedPosition(rng);
   const base = Date.now();
+
+  const closeEntry: LiveActivityLogEntry = won
+    ? {
+        id: nextId(),
+        kind: "PROFIT",
+        message: ` +$${fmtUsd(amount)} (+${fmtPct(Math.min(pct, 0.38))}%) · position closed · ${bot}`,
+        timestamp: new Date(base + 900),
+        isNew: true,
+        profitUsd: amount,
+      }
+    : {
+        id: nextId(),
+        kind: "LOSS",
+        message: ` -$${fmtUsd(amount)} (-${fmtPct(pct)}%) · stop hit · ${bot}`,
+        timestamp: new Date(base + 900),
+        isNew: true,
+        profitUsd: -amount,
+      };
 
   return [
     {
@@ -157,14 +205,7 @@ export function generateTradeBurst(rng: () => number): LiveActivityLogEntry[] {
       timestamp: new Date(base + 400),
       isNew: true,
     },
-    {
-      id: nextId(),
-      kind: "PROFIT",
-      message: ` +$${fmtUsd(profitUsd)} (+${fmtPct(Math.min(pct, 0.38))}%) · position closed · ${bot}`,
-      timestamp: new Date(base + 900),
-      isNew: true,
-      profitUsd,
-    },
+    closeEntry,
   ];
 }
 
