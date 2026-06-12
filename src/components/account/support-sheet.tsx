@@ -36,7 +36,8 @@ interface SupportSheetProps {
 
 export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
   const { user } = useAuth();
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [openTickets, setOpenTickets] = useState<SupportTicket[]>([]);
+  const [resolvedTickets, setResolvedTickets] = useState<SupportTicket[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [category, setCategory] = useState<string>("deposit");
@@ -46,6 +47,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [view, setView] = useState<"list" | "new">("list");
+  const [listFilter, setListFilter] = useState<"open" | "resolved">("open");
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
@@ -53,12 +55,23 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
     setLoadingTickets(true);
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/support/tickets?status=open", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load tickets");
-      setTickets(data.tickets ?? []);
+      const headers = { Authorization: `Bearer ${token}` };
+      const [openRes, resolvedRes] = await Promise.all([
+        fetch("/api/support/tickets?status=open", { headers }),
+        fetch("/api/support/tickets?status=resolved", { headers }),
+      ]);
+      const [openData, resolvedData] = await Promise.all([
+        openRes.json(),
+        resolvedRes.json(),
+      ]);
+      if (!openRes.ok) {
+        throw new Error(openData.error ?? "Failed to load open tickets");
+      }
+      if (!resolvedRes.ok) {
+        throw new Error(resolvedData.error ?? "Failed to load resolved tickets");
+      }
+      setOpenTickets(openData.tickets ?? []);
+      setResolvedTickets(resolvedData.tickets ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load tickets");
     } finally {
@@ -68,8 +81,20 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
 
   useEffect(() => {
     if (open && user) void loadTickets();
-    if (!open) setExpandedTicketId(null);
+    if (!open) {
+      setExpandedTicketId(null);
+      setListFilter("open");
+    }
   }, [open, user, loadTickets]);
+
+  const showList = (filter: "open" | "resolved") => {
+    setView("list");
+    setListFilter(filter);
+    setExpandedTicketId(null);
+  };
+
+  const visibleTickets =
+    listFilter === "open" ? openTickets : resolvedTickets;
 
   const resetForm = () => {
     setCategory("deposit");
@@ -160,6 +185,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
       toast.success("Support request submitted");
       resetForm();
       setView("list");
+      setListFilter("open");
       await loadTickets();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Submission failed");
@@ -181,26 +207,40 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 flex shrink-0 gap-2 px-4">
+        <div className="mt-4 flex shrink-0 flex-wrap gap-2 px-4">
           <button
             type="button"
-            onClick={() => setView("list")}
-            className={`rounded-full px-3 py-1 text-xs ${
-              view === "list"
+            onClick={() => showList("open")}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs",
+              view === "list" && listFilter === "open"
                 ? "bg-amber-500/20 text-amber-400"
                 : "text-zinc-500"
-            }`}
+            )}
           >
-            Open tickets ({tickets.length})
+            Open ({openTickets.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => showList("resolved")}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs",
+              view === "list" && listFilter === "resolved"
+                ? "bg-amber-500/20 text-amber-400"
+                : "text-zinc-500"
+            )}
+          >
+            Resolved ({resolvedTickets.length})
           </button>
           <button
             type="button"
             onClick={() => setView("new")}
-            className={`rounded-full px-3 py-1 text-xs ${
+            className={cn(
+              "rounded-full px-3 py-1 text-xs",
               view === "new"
                 ? "bg-amber-500/20 text-amber-400"
                 : "text-zinc-500"
-            }`}
+            )}
           >
             New request
           </button>
@@ -213,12 +253,14 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
               </div>
-            ) : tickets.length === 0 ? (
+            ) : visibleTickets.length === 0 ? (
               <p className="py-6 text-center text-sm text-zinc-500">
-                No open tickets. Submit a new request if you need help.
+                {listFilter === "open"
+                  ? "No open tickets. Submit a new request if you need help."
+                  : "No resolved tickets yet."}
               </p>
             ) : (
-              tickets.map((t) => {
+              visibleTickets.map((t) => {
                 const isExpanded = expandedTicketId === t.id;
 
                 return (
@@ -239,8 +281,15 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                           {getTicketSubject(t)}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-400">
-                        Open
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px]",
+                          t.status === "resolved"
+                            ? "bg-zinc-500/15 text-zinc-400"
+                            : "bg-emerald-500/15 text-emerald-400"
+                        )}
+                      >
+                        {t.status === "resolved" ? "Resolved" : "Open"}
                       </span>
                       <ChevronDown
                         className={cn(
@@ -257,6 +306,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                           {t.subject ? ` · ${t.subject}` : ""}
                         </p>
                         <p className="mt-1 text-xs text-zinc-500">
+                          Opened{" "}
                           {t.createdAt
                             ? format(
                                 new Date(t.createdAt.seconds * 1000),
@@ -264,6 +314,15 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                               )
                             : "—"}
                         </p>
+                        {t.status === "resolved" && t.resolvedAt && (
+                          <p className="mt-0.5 text-xs text-zinc-500">
+                            Resolved{" "}
+                            {format(
+                              new Date(t.resolvedAt.seconds * 1000),
+                              "MMM d, yyyy h:mm a"
+                            )}
+                          </p>
+                        )}
                         <SupportMessageText className="mt-2 text-sm text-zinc-400">
                           {t.message}
                         </SupportMessageText>
