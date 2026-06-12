@@ -1,6 +1,6 @@
 # TradIQ
 
-Mobile-first investment platform with copy-trading bots, QR Ph deposits (Paymongo), multi-level referrals, and black/gold glassmorphism UI.
+Mobile-first investment platform with copy-trading bots, QR Ph deposits, multi-level referrals, and black/gold glassmorphism UI.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Mobile-first investment platform with copy-trading bots, QR Ph deposits (Paymong
 
 > **Firebase:** See [SETUP_FIREBASE.md](SETUP_FIREBASE.md) for database creation, billing, and seeding steps.
 
-1. Copy `.env.example` to `.env.local` and fill in Firebase + Paymongo keys.
+1. Copy `.env.example` to `.env.local` and fill in Firebase.
 
 2. Install dependencies:
    ```bash
