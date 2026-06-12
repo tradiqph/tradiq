@@ -143,6 +143,53 @@
   animation: app-page-enter 160ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
 
+@keyframes live-activity-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(400px);
+    opacity: 0;
+  }
+}
+
+@keyframes live-activity-row-flash {
+  0% {
+    background-color: rgba(245, 158, 11, 0.12);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.live-activity-scanline {
+  animation: live-activity-scan 4s linear infinite;
+}
+
+.live-activity-row-new {
+  animation: live-activity-row-flash 1.2s ease-out forwards;
+}
+
+@keyframes live-activity-aum-pulse {
+  0% {
+    background-color: rgba(52, 211, 153, 0.12);
+  }
+  100% {
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+}
+
+.live-activity-aum-tick {
+  animation: live-activity-aum-pulse 0.6s ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .motion-safe-lift {
     transform: none !important;
@@ -154,6 +201,12 @@
 
   .console-dollar-pulse,
   .console-ring-glow {
+    animation: none;
+  }
+
+  .live-activity-scanline,
+  .live-activity-row-new,
+  .live-activity-aum-tick {
     animation: none;
   }
 }
