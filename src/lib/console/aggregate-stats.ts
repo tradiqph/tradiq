@@ -9,7 +9,10 @@ import {
   getReferralTotals,
   normalizeReferralStats,
 } from "@/lib/referral-stats";
-import { totalSubscriptionCommissionLiability } from "@/lib/finance";
+import {
+  totalSubscriptionCommissionLiability,
+  WITHDRAWAL_MIN_AMOUNT,
+} from "@/lib/finance";
 import { isSuperAdminRole } from "@/lib/roles";
 import { isManilaToday } from "@/lib/manila-time";
 
@@ -22,6 +25,8 @@ export async function aggregateConsoleStats(db: Firestore) {
   );
 
   let totalWallet = 0;
+  let possibleWithdrawalsWallet = 0;
+  let possibleWithdrawalsWalletCount = 0;
   let totalDeposit = 0;
   let totalDeposited = 0;
   let totalWithdrawn = 0;
@@ -39,7 +44,12 @@ export async function aggregateConsoleStats(db: Firestore) {
     if (isManilaToday(d.memberSince)) {
       membersRegisteredToday += 1;
     }
-    totalWallet += d.walletBalance ?? 0;
+    const wallet = d.walletBalance ?? 0;
+    totalWallet += wallet;
+    if (wallet >= WITHDRAWAL_MIN_AMOUNT) {
+      possibleWithdrawalsWallet += wallet;
+      possibleWithdrawalsWalletCount += 1;
+    }
     totalDeposit += d.depositBalance ?? 0;
     totalDeposited += d.totalDeposited ?? 0;
     totalWithdrawn += d.totalWithdrawn ?? 0;
@@ -137,6 +147,9 @@ export async function aggregateConsoleStats(db: Firestore) {
     payoutsTodayCount,
     completingTodayCount,
     totalWallet: Math.round(totalWallet * 100) / 100,
+    possibleWithdrawalsWallet:
+      Math.round(possibleWithdrawalsWallet * 100) / 100,
+    possibleWithdrawalsWalletCount,
     totalDeposit: Math.round(totalDeposit * 100) / 100,
     totalDeposited: Math.round(totalDeposited * 100) / 100,
     totalWithdrawn: Math.round(totalWithdrawn * 100) / 100,

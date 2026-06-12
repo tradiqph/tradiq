@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Copy, ExternalLink } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -10,11 +9,6 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { BotCatalogItem } from "@/types";
-import {
-  solscanAccountUrl,
-  truncateWallet,
-} from "@/lib/bots-catalog";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface BotTrackRecordSheetProps {
@@ -29,11 +23,6 @@ export function BotTrackRecordSheet({
   onOpenChange,
 }: BotTrackRecordSheetProps) {
   if (!bot) return null;
-
-  const copyWallet = () => {
-    navigator.clipboard.writeText(bot.walletAddress);
-    toast.success("Wallet address copied");
-  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -94,50 +83,6 @@ export function BotTrackRecordSheet({
             </div>
           ))}
         </div>
-
-        <div className="mt-5 rounded-xl border border-amber-500/15 bg-amber-500/5 p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            Signal source wallet
-          </p>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <code className="text-sm text-amber-400">
-              {truncateWallet(bot.walletAddress)}
-            </code>
-            <button
-              type="button"
-              onClick={copyWallet}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/20 text-zinc-400 hover:text-white cursor-pointer"
-              aria-label="Copy wallet address"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {bot.binanceLeadUrl ? (
-          <a
-            href={bot.binanceLeadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-3 text-sm font-medium text-amber-300 hover:bg-amber-500/15 hover:text-amber-200 cursor-pointer"
-          >
-            View on Binance Copy Trading
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
-
-        <a
-          href={solscanAccountUrl(bot.walletAddress)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-black/40 py-3 text-sm text-zinc-300 hover:text-white cursor-pointer",
-            bot.binanceLeadUrl ? "mt-2" : "mt-4"
-          )}
-        >
-          Verify on Solscan
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
       </SheetContent>
     </Sheet>
   );

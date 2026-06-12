@@ -77,6 +77,7 @@ const LEGACY_BOT_IDS = [
   "apex-trader",
 ];
 
+// Bot catalog — keep in sync with src/lib/bots-catalog.ts (source of truth)
 const BOTS_CATALOG = [
   {
     id: "aurum-pulse",
@@ -149,8 +150,6 @@ const BOTS_CATALOG = [
     walletAddress: "HN7cABqLq46Es1jh92dQQisAq662SmxAU7gSWZDZg5Jk",
     weeklyPnl: "+$178K",
     lastSignal: "Just now",
-    binanceLeadUrl:
-      "https://www.binance.com/en-PH/copy-trading/lead-details/4920419848544780801?timeRange=30D",
   },
 ];
 

@@ -25,6 +25,8 @@ interface ConsoleStats {
   payoutsTodayLiability: number;
   completingTodayCount: number;
   totalWallet: number;
+  possibleWithdrawalsWallet: number;
+  possibleWithdrawalsWalletCount: number;
   totalDeposit: number;
   totalDeposited: number;
   totalWithdrawn: number;
@@ -80,6 +82,19 @@ export default function ConsoleDashboardPage() {
           label="Pending withdrawal requests"
           value={String(data.pendingWithdrawals)}
           sub={formatPeso(data.pendingWithdrawalAmount)}
+        />
+        <StatCard
+          label="Possible wallet withdrawals"
+          value={formatPeso(data.possibleWithdrawalsWallet)}
+          sub={
+            <>
+              Member wallets at or above ₱300 minimum
+              <span className="mt-0.5 block text-zinc-600">
+                {data.possibleWithdrawalsWalletCount} wallet
+                {data.possibleWithdrawalsWalletCount === 1 ? "" : "s"}
+              </span>
+            </>
+          }
         />
         <StatCard
           label="Safe Money To Use"
