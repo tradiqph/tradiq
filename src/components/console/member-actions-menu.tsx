@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { Banknote, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoldButton } from "@/components/ui/gold-button";
 import { useAuth } from "@/hooks/use-auth";
+import { isCashDepositOperator } from "@/lib/console/cash-deposit";
 import { isSuperAdminRole } from "@/lib/roles";
 import { toast } from "sonner";
 
@@ -33,18 +34,23 @@ interface MemberActionsMenuProps {
 }
 
 export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositNote, setDepositNote] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isSelf = user?.uid === member.id;
   const isProtected = isSuperAdminRole(member.role) || isSelf;
+  const canCreditDeposit =
+    isCashDepositOperator(profile?.email) && !isProtected;
 
   const patchMember = async (body: object) => {
     if (!user) return;
@@ -112,6 +118,41 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
     }
   };
 
+  const handleCreditDeposit = async () => {
+    const amount = Number(depositAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!user) return;
+    setLoading(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/console/members/${member.id}/deposit`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount,
+          note: depositNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Deposit failed");
+      toast.success(`Credited ${member.displayName}'s wallet`);
+      setDepositOpen(false);
+      setDepositAmount("");
+      setDepositNote("");
+      onUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (confirmEmail.trim().toLowerCase() !== member.email.toLowerCase()) {
       toast.error("Email confirmation does not match");
@@ -155,6 +196,15 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <Users className="mr-2 h-4 w-4" />
             Network
           </DropdownMenuItem>
+          {canCreditDeposit && (
+            <DropdownMenuItem
+              className="cursor-pointer text-amber-400"
+              onClick={() => setDepositOpen(true)}
+            >
+              <Banknote className="mr-2 h-4 w-4" />
+              Credit deposit
+            </DropdownMenuItem>
+          )}
           {!isProtected && (
             <>
           <DropdownMenuItem
@@ -188,6 +238,49 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
         onOpenChange={setNetworkOpen}
         member={member}
       />
+
+      <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+        <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">
+          <DialogHeader>
+            <DialogTitle>Credit deposit</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Cash received for{" "}
+            <span className="text-white">{member.displayName}</span> (
+            {member.email}). This credits their wallet like a paid deposit.
+          </p>
+          <div className="space-y-2">
+            <Label className="text-zinc-400">Amount (PHP)</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              placeholder="0.00"
+              className="border-white/10 bg-black text-white"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-zinc-400">Note (optional, admin only)</Label>
+            <Input
+              value={depositNote}
+              onChange={(e) => setDepositNote(e.target.value)}
+              placeholder="e.g. Cash at office"
+              className="border-white/10 bg-black text-white"
+              maxLength={500}
+            />
+          </div>
+          <GoldButton
+            className="w-full"
+            disabled={loading}
+            onClick={() => void handleCreditDeposit()}
+          >
+            {loading ? "Crediting…" : "Credit to wallet"}
+          </GoldButton>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
         <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">

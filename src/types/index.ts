@@ -88,9 +88,13 @@ export interface Deposit {
   amount: number;
   paymongoIntentId: string;
   status: "pending" | "paid" | "expired";
-  qrImageUrl: string;
-  expiresAt: Timestamp;
+  qrImageUrl?: string;
+  expiresAt?: Timestamp;
   createdAt: Timestamp;
+  source?: "paymongo" | "admin_cash";
+  creditedBy?: string;
+  creditedByEmail?: string;
+  note?: string;
 }
 
 export interface BotCatalogItem {

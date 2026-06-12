@@ -13,6 +13,7 @@ import {
   Headphones,
   ChevronRight,
   Download,
+  Terminal,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
 import { SupportSheet } from "@/components/account/support-sheet";
@@ -44,6 +45,7 @@ import { db } from "@/lib/firebase/client";
 import { WithdrawalAccount } from "@/types";
 import { validateWithdrawalAccount, getAccountTypeConfig } from "@/lib/withdrawal-accounts";
 import { isPwaInstalled, promptPwaInstall } from "@/lib/pwa-install";
+import { isSuperAdminRole } from "@/lib/roles";
 import type { WithdrawalAccountFormData } from "@/components/account/add-withdrawal-account-dialog";
 
 function SettingsRow({
@@ -329,6 +331,8 @@ export default function AccountPage() {
     }
   };
 
+  const isSuperAdmin = isSuperAdminRole(profile?.role);
+
   const memberSince = profile?.memberSince
     ? format(
         typeof profile.memberSince === "object" && "toDate" in profile.memberSince
@@ -508,6 +512,17 @@ export default function AccountPage() {
               icon={Download}
               title="Download App"
               onClick={() => void handleDownloadApp()}
+            />
+          </div>
+        )}
+
+        {isSuperAdmin && (
+          <div className="surface-flat overflow-hidden">
+            <SettingsRow
+              icon={Terminal}
+              title="Super Admin Console"
+              subtitle="Dashboard, members, withdrawals, and reports"
+              href="/console"
             />
           </div>
         )}
