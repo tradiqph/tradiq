@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  formatPresentationUptime,
+  getPresentationUptimeDays,
+} from "@/lib/console/live-activity-format";
+
 const SERVICES = [
   { label: "VPS Online", ok: true },
   { label: "RPC Connected", ok: true },
@@ -9,6 +14,8 @@ const SERVICES = [
 ];
 
 export function LiveActivitySidebar() {
+  const uptimeDays = getPresentationUptimeDays();
+
   return (
     <aside className="hidden w-52 shrink-0 border-l border-white/5 bg-zinc-950/80 p-4 lg:block">
       <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -25,7 +32,9 @@ export function LiveActivitySidebar() {
         </div>
         <div className="flex justify-between gap-2">
           <dt className="text-zinc-500">Uptime</dt>
-          <dd className="text-zinc-300">68d 12h</dd>
+          <dd className="text-zinc-300">
+            {formatPresentationUptime(uptimeDays)}
+          </dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="text-zinc-500">SOL Wallet</dt>

@@ -33,14 +33,23 @@ function fmtPct(n: number): string {
 }
 
 function randomProfit(rng: () => number): { profit: number; pct: number } {
+  const roll = rng();
+  let profit: number;
+  if (roll < 0.6) {
+    profit = 1000 + rng() * 9000;
+  } else if (roll < 0.9) {
+    profit = 10_000 + rng() * 90_000;
+  } else {
+    profit = 100_000 + rng() * 899_999;
+  }
   return {
-    profit: 6 + rng() * 36,
+    profit: Math.round(profit * 100) / 100,
     pct: 0.06 + rng() * 0.32,
   };
 }
 
 function randomNotional(rng: () => number): { qty: number; price: number; usd: number } {
-  const usd = 600 + rng() * 8900;
+  const usd = 50_000 + rng() * 800_000;
   const price = 0.05 + rng() * 4.5;
   const qty = usd / price;
   return { qty, price, usd };
@@ -129,8 +138,8 @@ export function generateTradeBurst(rng: () => number): LiveActivityLogEntry[] {
   const bot = pick(rng, BOT_NAMES);
   const token = pick(rng, TOKENS);
   const { qty, price, usd } = randomNotional(rng);
-  const { pct } = randomProfit(rng);
-  const profitUsd = Math.round((14 + rng() * 24) * 100) / 100;
+  const { profit, pct } = randomProfit(rng);
+  const profitUsd = profit;
   const base = Date.now();
 
   return [

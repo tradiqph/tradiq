@@ -20,7 +20,7 @@ export function LiveActivityPresentation({
   onClose,
 }: LiveActivityPresentationProps) {
   const [tab, setTab] = useState<LiveActivityTab>("all");
-  const { filteredLogs, aumPhp, sessionPnlUsd, aumTickFlash } =
+  const { filteredLogs, aumPhp, sessionPnlUsd, tradesExecuted, winRatePct, aumTickFlash } =
     useLiveActivityEngine(open, tab);
 
   const handleKeyDown = useCallback(
@@ -42,7 +42,7 @@ export function LiveActivityPresentation({
 
   const emptyLabel =
     tab === "investments"
-      ? "No capital intake events yet…"
+      ? "No bot investments yet…"
       : tab === "profits"
         ? "No closed wins in stream…"
         : "Awaiting command stream…";
@@ -61,6 +61,8 @@ export function LiveActivityPresentation({
       <LiveActivityHeader
         aumPhp={aumPhp}
         sessionPnlUsd={sessionPnlUsd}
+        tradesExecuted={tradesExecuted}
+        winRatePct={winRatePct}
         aumTickFlash={aumTickFlash}
         onClose={onClose}
       />

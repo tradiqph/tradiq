@@ -30,7 +30,7 @@ export const LIVE_ACTIVITY_TABS: {
   { key: "all", label: "Command Stream" },
   { key: "trades", label: "Scalp Engine" },
   { key: "profits", label: "Yield Ledger" },
-  { key: "investments", label: "Capital Intake" },
+  { key: "investments", label: "Bot Investments" },
 ];
 
 export const TRADE_KINDS: TradeLogKind[] = [

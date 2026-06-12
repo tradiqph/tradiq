@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { ConsoleBotInvestment } from "@/lib/console/investments-group";
 import {
+  computePresentationWinRate,
   displayInvestorName,
   formatLogTime,
   phpToPresentationUsdt,
@@ -31,9 +32,9 @@ import {
   TRADE_KINDS,
 } from "@/components/console/live-activity/live-activity-types";
 
-const MAX_LOGS = 200;
+const MAX_TRADE_LOGS = 200;
 const POLL_MS = 15_000;
-const INITIAL_INVESTMENT_SEED = 10;
+const WIN_ROLL_PROBABILITY = 0.94;
 
 interface InvestmentsResponse {
   investments: ConsoleBotInvestment[];
@@ -43,9 +44,14 @@ function investmentKey(inv: ConsoleBotInvestment): string {
   return `${inv.userId}:${inv.id}`;
 }
 
+function botNameAtIndex(index: number): string {
+  return BOTS_CATALOG_SEED[index % BOTS_CATALOG_SEED.length]!.name;
+}
+
 function investmentToLog(
   inv: ConsoleBotInvestment,
-  botName: string
+  botName: string,
+  isNew = true
 ): LiveActivityLogEntry {
   const name = displayInvestorName(inv.displayName, inv.email);
   const usdt = phpToPresentationUsdt(inv.amount);
@@ -56,24 +62,25 @@ function investmentToLog(
     kind: "SUB",
     investmentKey: investmentKey(inv),
     timestamp: subscribed,
-    isNew: true,
+    isNew,
     message: ` › ${name} · ₱${inv.amount.toLocaleString("en-PH")} · ${usdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT allocated · ${botName} · ACTIVE`,
   };
 }
 
 function filterLogs(
-  logs: LiveActivityLogEntry[],
+  tradeLogs: LiveActivityLogEntry[],
+  investmentLogs: LiveActivityLogEntry[],
   tab: LiveActivityTab
 ): LiveActivityLogEntry[] {
   switch (tab) {
     case "investments":
-      return logs.filter((l) => l.kind === "SUB");
+      return investmentLogs;
     case "profits":
-      return logs.filter((l) => PROFIT_KINDS.includes(l.kind));
+      return tradeLogs.filter((l) => PROFIT_KINDS.includes(l.kind));
     case "trades":
-      return logs.filter((l) => TRADE_KINDS.includes(l.kind));
+      return tradeLogs.filter((l) => TRADE_KINDS.includes(l.kind));
     default:
-      return logs;
+      return tradeLogs;
   }
 }
 
@@ -90,88 +97,100 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
     rngRef.current = createSimulatorRng(session.rngSeed);
   }, [session.rngSeed]);
 
-  const appendLogs = useCallback((entries: LiveActivityLogEntry[]) => {
+  const appendTradeLogs = useCallback((entries: LiveActivityLogEntry[]) => {
     updateLiveActivitySession((prev) => {
       let aumPhp = prev.aumPhp;
       let sessionPnlUsd = prev.sessionPnlUsd;
+      let tradesExecuted = prev.tradesExecuted;
+      let winningTrades = prev.winningTrades;
       let aumTickFlash = false;
+      const statRng = createSimulatorRng(prev.rngSeed + tradesExecuted);
 
       for (const e of entries) {
         if (e.kind === "PROFIT" && e.profitUsd != null && e.profitUsd > 0) {
           sessionPnlUsd = Math.round((sessionPnlUsd + e.profitUsd) * 100) / 100;
           aumPhp = Math.round((aumPhp + usdProfitToPhp(e.profitUsd)) * 100) / 100;
           aumTickFlash = true;
+          tradesExecuted += 1;
+          if (statRng() < WIN_ROLL_PROBABILITY) {
+            winningTrades += 1;
+          }
         }
       }
 
       return {
         ...prev,
-        logs: [...prev.logs, ...entries].slice(-MAX_LOGS),
+        tradeLogs: [...prev.tradeLogs, ...entries].slice(-MAX_TRADE_LOGS),
         aumPhp,
         sessionPnlUsd,
+        tradesExecuted,
+        winningTrades,
         aumTickFlash,
       };
     });
   }, []);
 
-  const nextBotName = useCallback(() => {
-    let name = "";
-    updateLiveActivitySession((prev) => {
-      name =
-        BOTS_CATALOG_SEED[prev.botNameIndex % BOTS_CATALOG_SEED.length]!.name;
-      return { ...prev, botNameIndex: prev.botNameIndex + 1 };
-    });
-    return name;
-  }, []);
-
   const processInvestments = useCallback(
     (investments: ConsoleBotInvestment[]) => {
       const prev = getLiveActivitySession();
-      const sorted = [...investments].sort((a, b) => {
-        const ta = a.subscribedAt ? new Date(a.subscribedAt).getTime() : 0;
-        const tb = b.subscribedAt ? new Date(b.subscribedAt).getTime() : 0;
-        return tb - ta;
-      });
-
-      const seen = new Set(prev.seenInvestmentKeys);
-      const toEmit: ConsoleBotInvestment[] = [];
 
       if (!prev.investmentsInitialized) {
-        const recent = sorted.slice(0, INITIAL_INVESTMENT_SEED);
-        for (const inv of [...recent].reverse()) {
-          const key = investmentKey(inv);
-          if (!seen.has(key)) {
-            seen.add(key);
-            toEmit.push(inv);
-          }
-        }
-      } else {
-        for (const inv of sorted) {
-          const key = investmentKey(inv);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          toEmit.push(inv);
-        }
-      }
-
-      if (!prev.investmentsInitialized || toEmit.length > 0) {
-        updateLiveActivitySession((s) => ({
-          ...s,
-          seenInvestmentKeys: seen,
-          investmentsInitialized: true,
-        }));
-      }
-
-      if (toEmit.length > 0) {
-        const ordered = toEmit.sort((a, b) => {
+        const ascending = [...investments].sort((a, b) => {
           const ta = a.subscribedAt ? new Date(a.subscribedAt).getTime() : 0;
           const tb = b.subscribedAt ? new Date(b.subscribedAt).getTime() : 0;
           return ta - tb;
         });
-        appendLogs(ordered.map((inv) => investmentToLog(inv, nextBotName())));
+
+        const seen = new Set<string>();
+        const snapshot = ascending.map((inv, i) => {
+          seen.add(investmentKey(inv));
+          return investmentToLog(inv, botNameAtIndex(i), false);
+        });
+
+        updateLiveActivitySession((s) => ({
+          ...s,
+          investmentLogs: snapshot,
+          seenInvestmentKeys: seen,
+          investmentsInitialized: true,
+          botNameIndex: ascending.length,
+        }));
+        return;
       }
+
+      const seen = new Set(prev.seenInvestmentKeys);
+      const newInvestments: ConsoleBotInvestment[] = [];
+
+      for (const inv of investments) {
+        const key = investmentKey(inv);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        newInvestments.push(inv);
+      }
+
+      if (newInvestments.length === 0) return;
+
+      newInvestments.sort((a, b) => {
+        const ta = a.subscribedAt ? new Date(a.subscribedAt).getTime() : 0;
+        const tb = b.subscribedAt ? new Date(b.subscribedAt).getTime() : 0;
+        return ta - tb;
+      });
+
+      updateLiveActivitySession((s) => {
+        let botNameIndex = s.botNameIndex;
+        const newLogs = newInvestments.map((inv) => {
+          const log = investmentToLog(inv, botNameAtIndex(botNameIndex), true);
+          botNameIndex += 1;
+          return log;
+        });
+        return {
+          ...s,
+          investmentLogs: [...s.investmentLogs, ...newLogs],
+          seenInvestmentKeys: seen,
+          botNameIndex,
+        };
+      });
     },
-    [appendLogs, nextBotName]
+    []
   );
 
   const fetchInvestments = useCallback(async () => {
@@ -189,7 +208,6 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
     }
   }, [user, processInvestments]);
 
-  // Simulated trade stream — only while overlay open
   useEffect(() => {
     if (!open) return;
 
@@ -198,18 +216,17 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
 
     const tick = () => {
       if (shouldBurst(rng)) {
-        appendLogs(generateTradeBurst(rng));
+        appendTradeLogs(generateTradeBurst(rng));
       } else {
-        appendLogs([generateTradeLog(rng)]);
+        appendTradeLogs([generateTradeLog(rng)]);
       }
       timeoutId = setTimeout(tick, randomIntervalMs(rng));
     };
 
     timeoutId = setTimeout(tick, 800);
     return () => clearTimeout(timeoutId);
-  }, [open, appendLogs]);
+  }, [open, appendTradeLogs]);
 
-  // Investment poller — only while overlay open
   useEffect(() => {
     if (!open) return;
 
@@ -218,20 +235,21 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
     return () => clearInterval(id);
   }, [open, fetchInvestments]);
 
-  // Clear isNew flash after animation
   useEffect(() => {
-    const hasNew = session.logs.some((l) => l.isNew);
+    const hasNew =
+      session.tradeLogs.some((l) => l.isNew) ||
+      session.investmentLogs.some((l) => l.isNew);
     if (!hasNew) return;
     const id = setTimeout(() => {
       updateLiveActivitySession((prev) => ({
         ...prev,
-        logs: prev.logs.map((l) => ({ ...l, isNew: false })),
+        tradeLogs: prev.tradeLogs.map((l) => ({ ...l, isNew: false })),
+        investmentLogs: prev.investmentLogs.map((l) => ({ ...l, isNew: false })),
       }));
     }, 1200);
     return () => clearTimeout(id);
-  }, [session.logs]);
+  }, [session.tradeLogs, session.investmentLogs]);
 
-  // Clear AUM tick flash
   useEffect(() => {
     if (!session.aumTickFlash) return;
     const id = setTimeout(() => {
@@ -240,14 +258,24 @@ export function useLiveActivityEngine(open: boolean, tab: LiveActivityTab) {
     return () => clearTimeout(id);
   }, [session.aumTickFlash]);
 
-  const filteredLogs = filterLogs(session.logs, tab);
+  const filteredLogs = filterLogs(
+    session.tradeLogs,
+    session.investmentLogs,
+    tab
+  );
+
+  const winRatePct = computePresentationWinRate(
+    session.winningTrades,
+    session.tradesExecuted
+  );
 
   return {
     filteredLogs,
     aumPhp: session.aumPhp,
     sessionPnlUsd: session.sessionPnlUsd,
+    tradesExecuted: session.tradesExecuted,
+    winRatePct,
     aumTickFlash: session.aumTickFlash,
-    allLogsCount: session.logs.length,
   };
 }
 

@@ -15,9 +15,11 @@ import {
   ChevronRight,
   Download,
   Terminal,
+  ImageIcon,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
 import { SupportSheet } from "@/components/account/support-sheet";
+import { MarketingMaterialsSheet } from "@/components/account/marketing-materials-sheet";
 import { AddWithdrawalAccountDialog } from "@/components/account/add-withdrawal-account-dialog";
 import { WithdrawalAccountCard } from "@/components/account/withdrawal-account-card";
 import { GoldButton } from "@/components/ui/gold-button";
@@ -128,6 +130,7 @@ function AccountContent() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [marketingOpen, setMarketingOpen] = useState(false);
   const [pin, setPin] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -512,6 +515,18 @@ function AccountContent() {
 
         <div className="surface-flat overflow-hidden">
           <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+            Resources
+          </p>
+          <SettingsRow
+            icon={ImageIcon}
+            title="Download Marketing Materials"
+            subtitle="Social images for referrals, 3% daily, and platform showcase"
+            onClick={() => setMarketingOpen(true)}
+          />
+        </div>
+
+        <div className="surface-flat overflow-hidden">
+          <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
             Help
           </p>
           <SettingsRow
@@ -559,6 +574,11 @@ function AccountContent() {
       />
 
       <SupportSheet open={supportOpen} onOpenChange={setSupportOpen} />
+
+      <MarketingMaterialsSheet
+        open={marketingOpen}
+        onOpenChange={setMarketingOpen}
+      />
 
       <AddWithdrawalAccountDialog
         open={addOpen}

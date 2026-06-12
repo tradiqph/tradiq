@@ -1,10 +1,18 @@
 import type { LiveActivityLogEntry } from "@/components/console/live-activity/live-activity-types";
-import { PRESENTATION_AUM_BASE_PHP } from "@/lib/console/live-activity-format";
+import {
+  PRESENTATION_AUM_BASE_PHP,
+  PRESENTATION_TRADES_BASE,
+  PRESENTATION_WINS_BASE,
+  randomSessionPnlBase,
+} from "@/lib/console/live-activity-format";
 
 export interface LiveActivitySessionState {
-  logs: LiveActivityLogEntry[];
+  tradeLogs: LiveActivityLogEntry[];
+  investmentLogs: LiveActivityLogEntry[];
   aumPhp: number;
   sessionPnlUsd: number;
+  tradesExecuted: number;
+  winningTrades: number;
   seenInvestmentKeys: Set<string>;
   botNameIndex: number;
   rngSeed: number;
@@ -13,13 +21,17 @@ export interface LiveActivitySessionState {
 }
 
 function createInitialState(): LiveActivitySessionState {
+  const rngSeed = Date.now() % 2147483646;
   return {
-    logs: [],
+    tradeLogs: [],
+    investmentLogs: [],
     aumPhp: PRESENTATION_AUM_BASE_PHP,
-    sessionPnlUsd: 0,
+    sessionPnlUsd: randomSessionPnlBase(rngSeed),
+    tradesExecuted: PRESENTATION_TRADES_BASE,
+    winningTrades: PRESENTATION_WINS_BASE,
     seenInvestmentKeys: new Set(),
     botNameIndex: 0,
-    rngSeed: Date.now() % 2147483646,
+    rngSeed,
     investmentsInitialized: false,
     aumTickFlash: false,
   };

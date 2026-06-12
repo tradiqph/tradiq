@@ -1,12 +1,17 @@
 "use client";
 
 import { Activity, X } from "lucide-react";
-import { formatPresentationPeso } from "@/lib/console/live-activity-format";
+import {
+  formatPresentationPeso,
+  formatSessionPnlUsd,
+} from "@/lib/console/live-activity-format";
 import { cn } from "@/lib/utils";
 
 interface LiveActivityHeaderProps {
   aumPhp: number;
   sessionPnlUsd: number;
+  tradesExecuted: number;
+  winRatePct: number;
   aumTickFlash: boolean;
   onClose: () => void;
 }
@@ -14,6 +19,8 @@ interface LiveActivityHeaderProps {
 export function LiveActivityHeader({
   aumPhp,
   sessionPnlUsd,
+  tradesExecuted,
+  winRatePct,
   aumTickFlash,
   onClose,
 }: LiveActivityHeaderProps) {
@@ -64,11 +71,7 @@ export function LiveActivityHeader({
             Session P&amp;L
           </p>
           <p className="mt-1 font-mono text-lg font-bold text-emerald-400 sm:text-xl">
-            +$
-            {sessionPnlUsd.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            +${formatSessionPnlUsd(sessionPnlUsd)}
           </p>
           <p className="mt-0.5 text-[10px] text-emerald-600/80">this session</p>
         </div>
@@ -77,7 +80,7 @@ export function LiveActivityHeader({
             Win Rate
           </p>
           <p className="mt-1 font-mono text-lg font-bold text-white sm:text-xl">
-            92.4%
+            {winRatePct.toFixed(1)}%
           </p>
         </div>
         <div className="rounded-xl border border-white/5 bg-black/60 p-3">
@@ -85,7 +88,7 @@ export function LiveActivityHeader({
             Trades Executed
           </p>
           <p className="mt-1 font-mono text-lg font-bold text-white sm:text-xl">
-            14,218
+            {tradesExecuted.toLocaleString("en-US")}
           </p>
         </div>
       </div>
