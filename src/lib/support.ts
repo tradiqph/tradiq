@@ -49,7 +49,23 @@ export interface SupportTicket {
   createdAt: { seconds: number } | null;
   updatedAt: { seconds: number } | null;
   resolvedAt?: { seconds: number } | null;
+  lastReplyAuthorRole?: "user" | "admin" | null;
+  lastReplyPreview?: string | null;
+  lastReplyAt?: { seconds: number } | null;
+  userReadAt?: { seconds: number } | null;
+  hasUnreadReply?: boolean;
   replies?: SupportTicketReply[];
+}
+
+export interface SupportUnreadItem {
+  ticketId: string;
+  categoryLabel: string;
+  preview: string;
+  lastReplyAt: { seconds: number } | null;
+}
+
+export interface SupportNotificationItem extends SupportUnreadItem {
+  isUnread: boolean;
 }
 
 /** Strip control chars and limit length — mitigates log/HTML injection in stored text. */

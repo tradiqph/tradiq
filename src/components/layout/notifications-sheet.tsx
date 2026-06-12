@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Bell,
   Bot,
+  Headphones,
   Shield,
   Sparkles,
   TrendingUp,
@@ -23,6 +24,7 @@ const iconByType = {
   transaction: Wallet,
   earning: TrendingUp,
   system: Sparkles,
+  support: Headphones,
 };
 
 interface NotificationsSheetProps {
@@ -63,7 +65,8 @@ export function NotificationsSheet({
                       item.type === "security" && "bg-amber-500/15 text-amber-400",
                       item.type === "transaction" && "bg-blue-500/10 text-blue-300",
                       item.type === "earning" && "bg-emerald-500/10 text-emerald-400",
-                      item.type === "system" && "bg-purple-500/10 text-purple-300"
+                      item.type === "system" && "bg-purple-500/10 text-purple-300",
+                      item.type === "support" && "bg-amber-500/15 text-amber-400"
                     )}
                   >
                     <Icon className="h-4 w-4" />

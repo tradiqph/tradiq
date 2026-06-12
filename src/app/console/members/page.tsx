@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
 import { MemberActionsMenu } from "@/components/console/member-actions-menu";
 import { MemberBotsSheet } from "@/components/console/member-bots-sheet";
@@ -186,7 +187,7 @@ export default function ConsoleMembersPage() {
       {error ? (
         <ConsoleError message={error} />
       ) : loading && members.length === 0 ? (
-        <p className="text-zinc-500">Loading members...</p>
+        <ConsoleLoader variant="section" label="Loading members" />
       ) : (
         <div className="space-y-3">
           <DataTable

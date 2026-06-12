@@ -1,6 +1,11 @@
 import { FieldValue, Firestore, Timestamp } from "firebase-admin/firestore";
 import { getAdminStorageBucket } from "@/lib/firebase/admin";
-import type { SupportTicket, SupportTicketReply } from "@/lib/support";
+import type {
+  SupportNotificationItem,
+  SupportTicket,
+  SupportTicketReply,
+  SupportUnreadItem,
+} from "@/lib/support";
 
 export async function signedUrlsForPaths(
   paths: string[]
@@ -32,6 +37,119 @@ function serializeTimestamp(
   return { seconds: value.seconds };
 }
 
+function timestampToMillis(
+  value: FirebaseFirestore.Timestamp | undefined | null
+): number {
+  if (!value || typeof value.toMillis !== "function") return 0;
+  return value.toMillis();
+}
+
+export function isSupportTicketUnreadForUser(
+  data: FirebaseFirestore.DocumentData
+): boolean {
+  const lastReplyAt = data.lastReplyAt as FirebaseFirestore.Timestamp | undefined;
+  if (!lastReplyAt) return false;
+
+  const authorRole = data.lastReplyAuthorRole as string | undefined;
+  if (authorRole === "user") return false;
+  if (authorRole !== "admin") {
+    if (!data.lastReplyPreview) return false;
+  }
+
+  const userReadAt = data.userReadAt as FirebaseFirestore.Timestamp | undefined;
+  if (!userReadAt) return true;
+
+  return timestampToMillis(lastReplyAt) > timestampToMillis(userReadAt);
+}
+
+function hasAdminSupportReply(data: FirebaseFirestore.DocumentData): boolean {
+  const lastReplyAt = data.lastReplyAt as FirebaseFirestore.Timestamp | undefined;
+  if (!lastReplyAt) return false;
+
+  const authorRole = data.lastReplyAuthorRole as string | undefined;
+  if (authorRole === "user") return false;
+  if (authorRole !== "admin" && !data.lastReplyPreview) return false;
+
+  return true;
+}
+
+function toSupportNotificationItem(
+  doc: FirebaseFirestore.QueryDocumentSnapshot
+): SupportNotificationItem {
+  const data = doc.data();
+  return {
+    ticketId: doc.id,
+    categoryLabel: (data.categoryLabel as string) ?? "Support",
+    preview: (data.lastReplyPreview as string) ?? "",
+    lastReplyAt: serializeTimestamp(
+      data.lastReplyAt as FirebaseFirestore.Timestamp | undefined
+    ),
+    isUnread: isSupportTicketUnreadForUser(data),
+  };
+}
+
+export async function listSupportNotificationItemsForUser(
+  db: Firestore,
+  userId: string,
+  limit = 20
+): Promise<SupportNotificationItem[]> {
+  const snap = await db
+    .collection("supportTickets")
+    .where("userId", "==", userId)
+    .get();
+
+  return snap.docs
+    .filter((doc) => hasAdminSupportReply(doc.data()))
+    .map(toSupportNotificationItem)
+    .sort(
+      (a, b) =>
+        (b.lastReplyAt?.seconds ?? 0) - (a.lastReplyAt?.seconds ?? 0)
+    )
+    .slice(0, limit);
+}
+
+export async function markSupportTicketsReadForUser(
+  db: Firestore,
+  userId: string,
+  ticketIds?: string[]
+): Promise<number> {
+  const snap = await db
+    .collection("supportTickets")
+    .where("userId", "==", userId)
+    .get();
+
+  const batch = db.batch();
+  let updated = 0;
+
+  for (const doc of snap.docs) {
+    if (ticketIds && ticketIds.length > 0 && !ticketIds.includes(doc.id)) {
+      continue;
+    }
+    if (!isSupportTicketUnreadForUser(doc.data())) continue;
+
+    batch.update(doc.ref, {
+      userReadAt: FieldValue.serverTimestamp(),
+    });
+    updated += 1;
+  }
+
+  if (updated > 0) {
+    await batch.commit();
+  }
+
+  return updated;
+}
+
+export async function listUnreadSupportTicketsForUser(
+  db: Firestore,
+  userId: string
+): Promise<SupportUnreadItem[]> {
+  const items = await listSupportNotificationItemsForUser(db, userId);
+  return items
+    .filter((item) => item.isUnread)
+    .map(({ isUnread: _isUnread, ...item }) => item);
+}
+
 export async function serializeTicket(
   doc: FirebaseFirestore.DocumentSnapshot,
   includeReplies = false,
@@ -55,6 +173,11 @@ export async function serializeTicket(
     createdAt: serializeTimestamp(data.createdAt),
     updatedAt: serializeTimestamp(data.updatedAt),
     resolvedAt: serializeTimestamp(data.resolvedAt),
+    lastReplyAuthorRole: data.lastReplyAuthorRole ?? null,
+    lastReplyPreview: (data.lastReplyPreview as string | undefined) ?? null,
+    lastReplyAt: serializeTimestamp(data.lastReplyAt),
+    userReadAt: serializeTimestamp(data.userReadAt),
+    hasUnreadReply: isSupportTicketUnreadForUser(data),
   };
 
   if (includeReplies && db) {
@@ -130,6 +253,7 @@ export async function appendReply(
       updatedAt: FieldValue.serverTimestamp(),
       lastReplyAt: FieldValue.serverTimestamp(),
       lastReplyPreview: reply.body.slice(0, 120),
+      lastReplyAuthorRole: reply.authorRole,
     });
   });
 }

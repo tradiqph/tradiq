@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { ConsoleError } from "@/components/console/console-error";
 import { LiabilityCalendar } from "@/components/console/liability-calendar";
 import { StatCard } from "@/components/console/stat-card";
@@ -38,7 +39,7 @@ export default function ConsoleDashboardPage() {
   );
 
   if (loading) {
-    return <p className="text-zinc-500">Loading dashboard...</p>;
+    return <ConsoleLoader variant="page" label="Loading dashboard" />;
   }
 
   if (error || !data) {

@@ -134,6 +134,8 @@ export async function POST(request: NextRequest) {
       resolvedAt: null,
       lastReplyAt: null,
       lastReplyPreview: null,
+      lastReplyAuthorRole: null,
+      userReadAt: FieldValue.serverTimestamp(),
     });
 
     const created = await ticketRef.get();

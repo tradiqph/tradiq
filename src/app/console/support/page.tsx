@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { format } from "date-fns";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { GoldButton } from "@/components/ui/gold-button";
+import { SupportAttachmentGallery } from "@/components/support/support-attachment-gallery";
+import { SupportMessageText } from "@/components/support/support-message-text";
+import { useConsoleBadges } from "@/contexts/console-badges";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,6 +23,7 @@ type StatusFilter = "all" | "open" | "resolved";
 
 export default function ConsoleSupportPage() {
   const { user } = useAuth();
+  const { refetchSupportBadge } = useConsoleBadges();
   const [date, setDate] = useState(todayIso);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -58,11 +62,12 @@ export default function ConsoleSupportPage() {
         setTickets(data.tickets ?? []);
         setHasMore(Boolean(data.hasMore));
         setNextCursor(data.nextCursor ?? null);
+        void refetchSupportBadge();
       } finally {
         setLoading(false);
       }
     },
-    [user, date, status]
+    [user, date, status, refetchSupportBadge]
   );
 
   const loadDetail = async (ticketId: string) => {
@@ -152,6 +157,7 @@ export default function ConsoleSupportPage() {
       setSelected(data.ticket);
       toast.success("Ticket marked resolved");
       void fetchTickets(cursors[page - 1] ?? null, page);
+      void refetchSupportBadge();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to resolve");
     } finally {
@@ -202,7 +208,7 @@ export default function ConsoleSupportPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="surface-flat overflow-hidden">
           {loading ? (
-            <p className="p-6 text-sm text-zinc-500">Loading…</p>
+            <ConsoleLoader variant="section" />
           ) : tickets.length === 0 ? (
             <p className="p-6 text-sm text-zinc-500">
               No tickets for this date
@@ -237,9 +243,9 @@ export default function ConsoleSupportPage() {
                     <p className="text-xs text-amber-400/80">
                       {t.categoryLabel}
                     </p>
-                    <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+                    <SupportMessageText className="mt-1 line-clamp-2 text-xs text-zinc-500">
                       {t.message}
-                    </p>
+                    </SupportMessageText>
                     <p className="mt-1 text-[10px] text-zinc-600">
                       {t.createdAt
                         ? format(
@@ -288,29 +294,13 @@ export default function ConsoleSupportPage() {
                   {selected.categoryLabel}
                   {selected.subject ? ` — ${selected.subject}` : ""}
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">{selected.message}</p>
+                <SupportMessageText className="mt-2 text-sm text-zinc-300">
+                  {selected.message}
+                </SupportMessageText>
               </div>
 
               {selected.attachmentUrls.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selected.attachmentUrls.map((url) => (
-                    <a
-                      key={url}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="relative h-20 w-20 overflow-hidden rounded-lg border border-white/10"
-                    >
-                      <Image
-                        src={url}
-                        alt="Screenshot"
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </a>
-                  ))}
-                </div>
+                <SupportAttachmentGallery urls={selected.attachmentUrls} />
               )}
 
               {selected.replies && selected.replies.length > 0 && (
@@ -324,7 +314,9 @@ export default function ConsoleSupportPage() {
                       <p className="text-xs text-amber-400">
                         {r.authorRole === "admin" ? "You (Support)" : "User"}
                       </p>
-                      <p className="text-zinc-300">{r.body}</p>
+                      <SupportMessageText className="text-zinc-300">
+                        {r.body}
+                      </SupportMessageText>
                     </div>
                   ))}
                 </div>

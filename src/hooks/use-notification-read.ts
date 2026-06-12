@@ -28,7 +28,8 @@ function persistSeenIds(ids: string[]): void {
 
 export function useNotificationReadState(
   notifications: AppNotification[],
-  sheetOpen: boolean
+  sheetOpen: boolean,
+  onSheetOpen?: () => void
 ) {
   const [seenIds, setSeenIds] = useState<string[]>(readSeenIds);
 
@@ -43,8 +44,9 @@ export function useNotificationReadState(
 
   useEffect(() => {
     if (!sheetOpen) return;
+    onSheetOpen?.();
     markSeen(notifications.map((item) => item.id));
-  }, [sheetOpen, notifications, markSeen]);
+  }, [sheetOpen, notifications, markSeen, onSheetOpen]);
 
   const seen = new Set(seenIds);
   const hasUnread =

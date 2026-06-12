@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ConsoleNavBadge } from "@/components/console/console-nav-badge";
 import { consoleNavItems } from "@/lib/console/nav";
 import { cn } from "@/lib/utils";
 
-export function ConsoleBottomNav() {
+interface ConsoleBottomNavProps {
+  openSupportCount?: number;
+}
+
+export function ConsoleBottomNav({
+  openSupportCount = 0,
+}: ConsoleBottomNavProps) {
   const pathname = usePathname();
 
   return (
@@ -25,6 +32,8 @@ export function ConsoleBottomNav() {
             const active = exact
               ? pathname === href
               : pathname.startsWith(href);
+            const showSupportBadge =
+              href === "/console/support" && openSupportCount > 0;
 
             return (
               <Link
@@ -36,13 +45,19 @@ export function ConsoleBottomNav() {
               >
                 <div
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                    "relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                     active
                       ? "bg-amber-500/20 text-amber-400"
                       : "text-zinc-500"
                   )}
                 >
                   <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.25 : 2} />
+                  {showSupportBadge && (
+                    <ConsoleNavBadge
+                      count={openSupportCount}
+                      className="absolute -top-1.5 -right-1.5 h-[18px] min-w-[18px] text-[9px]"
+                    />
+                  )}
                 </div>
                 <span
                   className={cn(

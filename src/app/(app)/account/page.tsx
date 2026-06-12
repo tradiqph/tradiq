@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   User,
@@ -93,6 +94,15 @@ function SettingsRow({
 }
 
 export default function AccountPage() {
+  return (
+    <Suspense fallback={<p className="px-4 py-8 text-zinc-500">Loading account...</p>}>
+      <AccountContent />
+    </Suspense>
+  );
+}
+
+function AccountContent() {
+  const searchParams = useSearchParams();
   const {
     user,
     profile,
@@ -123,6 +133,12 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("support") === "1") {
+      setSupportOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!user || !db) return;

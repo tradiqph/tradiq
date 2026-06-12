@@ -240,6 +240,50 @@ export function getRemainingScheduledPayouts(
   return results;
 }
 
+/** Calendar liability: past = credited slots; today = all slots (stable); future = unpaid only. */
+export function getExpectedCalendarDayPayouts(
+  bot: BotInvestmentData,
+  windowStartKey: string,
+  windowEndKey: string,
+  todayKey: string,
+  dateKeyFn: (d: Date) => string
+): ScheduledPayout[] {
+  if (bot.status !== "active" && bot.status !== "completed") return [];
+
+  const subscribedAt = toDate(bot.subscribedAt);
+  if (!subscribedAt) return [];
+
+  const daysAccrued = inferDaysAccrued(bot);
+  const termDays = getTermDays(bot);
+  const due = dailyPayout(bot.amount, bot.dailyRate ?? DAILY_BOT_RATE);
+
+  const results: ScheduledPayout[] = [];
+
+  for (let k = 1; k <= termDays; k++) {
+    const scheduledAt = getScheduledPayoutAt(subscribedAt, k);
+    const dateKey = dateKeyFn(scheduledAt);
+
+    if (dateKey < windowStartKey || dateKey > windowEndKey) continue;
+
+    if (dateKey < todayKey) {
+      if (k > daysAccrued) continue;
+    } else if (dateKey > todayKey) {
+      if (bot.status !== "active") continue;
+      if (k <= daysAccrued) continue;
+    } else if (bot.status !== "active") {
+      continue;
+    }
+
+    results.push({
+      dateKey,
+      interest: due,
+      principal: k === termDays ? bot.amount : 0,
+    });
+  }
+
+  return results;
+}
+
 export interface ConsoleInvestmentUserMeta {
   email?: string;
   displayName?: string;

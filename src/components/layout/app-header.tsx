@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell } from "lucide-react";
 import { NotificationsSheet } from "@/components/layout/notifications-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationReadState } from "@/hooks/use-notification-read";
+import { useSupportUnread } from "@/hooks/use-support-unread";
 import { useTransactions } from "@/hooks/use-transactions";
-import { buildAppNotifications } from "@/lib/notifications";
+import { buildAppNotifications, buildSupportNotifications } from "@/lib/notifications";
 
 interface AppHeaderProps {
   title?: string;
@@ -31,16 +32,26 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { profile } = useAuth();
   const { transactions } = useTransactions(10);
+  const { count: supportUnreadCount, items: supportNotificationItems, markRead: markSupportRead } =
+    useSupportUnread();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const notifications = useMemo(
-    () => buildAppNotifications(profile, transactions),
-    [profile, transactions]
-  );
+  const notifications = useMemo(() => {
+    const supportNotifications = buildSupportNotifications(
+      supportNotificationItems
+    );
+    const appNotifications = buildAppNotifications(profile, transactions);
+    return [...supportNotifications, ...appNotifications];
+  }, [profile, transactions, supportNotificationItems]);
+
+  const handleNotificationsOpen = useCallback(() => {
+    void markSupportRead();
+  }, [markSupportRead]);
 
   const { hasUnread } = useNotificationReadState(
     notifications,
-    notificationsOpen
+    notificationsOpen,
+    handleNotificationsOpen
   );
 
   if (title) {
@@ -70,7 +81,8 @@ export function AppHeader({
     );
   }
 
-  const showBadge = hasUnread && !notificationsOpen;
+  const showBadge =
+    (hasUnread || supportUnreadCount > 0) && !notificationsOpen;
   const displayName = profile?.displayName ?? "Trader";
 
   return (

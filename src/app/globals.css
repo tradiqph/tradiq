@@ -107,6 +107,38 @@
   }
 }
 
+@keyframes console-dollar-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes console-ring-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.06);
+  }
+}
+
+.console-dollar-pulse {
+  animation: console-dollar-pulse 1.4s ease-in-out infinite;
+}
+
+.console-ring-glow {
+  animation: console-ring-glow 1.4s ease-in-out infinite;
+}
+
 .app-page-enter {
   animation: app-page-enter 160ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
@@ -117,6 +149,11 @@
   }
 
   .app-page-enter {
+    animation: none;
+  }
+
+  .console-dollar-pulse,
+  .console-ring-glow {
     animation: none;
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { isSuperAdminRole } from "@/lib/roles";
 
 export function ConsoleGuard({ children }: { children: React.ReactNode }) {
@@ -21,11 +22,7 @@ export function ConsoleGuard({ children }: { children: React.ReactNode }) {
   }, [loading, user, profile, router]);
 
   if (loading || !user || !isSuperAdminRole(profile?.role)) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-black text-zinc-500">
-        Loading console...
-      </div>
-    );
+    return <ConsoleLoader variant="fullscreen" label="Loading console" />;
   }
 
   return <>{children}</>;

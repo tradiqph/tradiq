@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { GoldButton } from "@/components/ui/gold-button";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import {
@@ -236,7 +237,7 @@ export default function ConsoleWithdrawalsPage() {
       {fetchError ? (
         <ConsoleError message={fetchError} />
       ) : fetching ? (
-        <p className="text-zinc-500">Loading...</p>
+        <ConsoleLoader variant="section" />
       ) : requests.length === 0 ? (
         <div className="surface-flat p-8 text-center text-zinc-500">
           No {tab === "all" ? "" : tab} withdrawal requests

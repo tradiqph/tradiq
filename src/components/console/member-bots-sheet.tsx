@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import {
@@ -102,7 +103,7 @@ export function MemberBotsSheet({
           {error ? (
             <ConsoleError message={error} />
           ) : loading ? (
-            <p className="text-sm text-zinc-500">Loading bots...</p>
+            <ConsoleLoader variant="section" label="Loading bots" />
           ) : (
             <DataTable
               data={bots}

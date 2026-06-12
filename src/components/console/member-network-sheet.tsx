@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, Users } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
 import {
   Sheet,
@@ -194,7 +195,7 @@ export function MemberNetworkSheet({
               </form>
 
               {loadingMembers && members.length === 0 ? (
-                <p className="text-sm text-zinc-500">Loading members...</p>
+                <ConsoleLoader variant="section" label="Loading members" />
               ) : (
                 <DataTable
                   data={members}

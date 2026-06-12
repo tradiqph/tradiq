@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ConsoleBottomNav } from "@/components/console/console-bottom-nav";
+import { ConsoleNavBadge } from "@/components/console/console-nav-badge";
+import { ConsoleBadgesProvider, useConsoleBadges } from "@/contexts/console-badges";
 import { consoleNavItems } from "@/lib/console/nav";
 import { cn } from "@/lib/utils";
 
-export function ConsoleShell({ children }: { children: React.ReactNode }) {
+function ConsoleShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { openSupportCount } = useConsoleBadges();
 
   return (
     <div className="min-h-dvh bg-black text-white">
@@ -25,19 +28,25 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
               const active = exact
                 ? pathname === href
                 : pathname.startsWith(href);
+              const showSupportBadge =
+                href === "/console/support" && openSupportCount > 0;
+
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                    "flex items-center gap-2 overflow-visible rounded-lg px-3 py-2 text-sm transition-colors",
                     active
                       ? "bg-amber-500/15 text-amber-400"
                       : "text-zinc-400 hover:bg-white/5 hover:text-white"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">{label}</span>
+                  {showSupportBadge && (
+                    <ConsoleNavBadge count={openSupportCount} />
+                  )}
                 </Link>
               );
             })}
@@ -74,7 +83,15 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <ConsoleBottomNav />
+      <ConsoleBottomNav openSupportCount={openSupportCount} />
     </div>
+  );
+}
+
+export function ConsoleShell({ children }: { children: React.ReactNode }) {
+  return (
+    <ConsoleBadgesProvider>
+      <ConsoleShellInner>{children}</ConsoleShellInner>
+    </ConsoleBadgesProvider>
   );
 }

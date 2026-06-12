@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
@@ -116,7 +117,7 @@ export default function ConsoleCommissionsPage() {
       </div>
 
       {loading ? (
-        <p className="text-zinc-500">Loading commissions...</p>
+        <ConsoleLoader variant="page" label="Loading commissions" />
       ) : error ? (
         <ConsoleError message={error} />
       ) : (

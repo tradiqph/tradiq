@@ -1,5 +1,6 @@
 import { format, formatDistanceToNow } from "date-fns";
 import { userHasSecurityPin } from "@/lib/security/pin";
+import type { SupportNotificationItem, SupportUnreadItem } from "@/lib/support";
 import { Transaction, UserProfile } from "@/types";
 
 export interface AppNotification {
@@ -7,8 +8,30 @@ export interface AppNotification {
   title: string;
   body: string;
   time: string;
-  type: "security" | "transaction" | "earning" | "system";
+  type: "security" | "transaction" | "earning" | "system" | "support";
   href?: string;
+}
+
+export function buildSupportNotifications(
+  items: (SupportUnreadItem | SupportNotificationItem)[]
+): AppNotification[] {
+  return items.map((item) => {
+    const date = item.lastReplyAt
+      ? new Date(item.lastReplyAt.seconds * 1000)
+      : null;
+    const time = date
+      ? formatDistanceToNow(date, { addSuffix: true })
+      : "Recently";
+
+    return {
+      id: `support-${item.ticketId}`,
+      title: "Support replied",
+      body: item.preview || `${item.categoryLabel} — tap to read the response`,
+      time,
+      type: "support",
+      href: "/account?support=1",
+    };
+  });
 }
 
 export function buildAppNotifications(

@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { Calendar, X } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
+import { ConsoleLoader } from "@/components/console/console-loader";
 import { MemberInvestmentsTable } from "@/components/console/member-investments-table";
 import { StatCard } from "@/components/console/stat-card";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
@@ -203,7 +204,7 @@ function InvestmentsContent() {
       </div>
 
       {loading ? (
-        <p className="text-zinc-500">Loading investments...</p>
+        <ConsoleLoader variant="page" label="Loading investments" />
       ) : error ? (
         <ConsoleError message={error} />
       ) : (
@@ -223,7 +224,7 @@ function InvestmentsContent() {
 
 export default function ConsoleInvestmentsPage() {
   return (
-    <Suspense fallback={<p className="text-zinc-500">Loading...</p>}>
+    <Suspense fallback={<ConsoleLoader variant="page" />}>
       <InvestmentsContent />
     </Suspense>
   );

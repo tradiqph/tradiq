@@ -58,6 +58,56 @@ export function getManilaDateWindow(horizonDays: number): {
   };
 }
 
+export const LIABILITY_CALENDAR_MIN_MONTH = "2024-01";
+
+export function manilaCurrentMonthKey(): string {
+  return manilaDateKey(new Date()).slice(0, 7);
+}
+
+export function parseMonthParam(value: string | null): string | null {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return null;
+  const [y, m] = value.split("-").map(Number);
+  if (m < 1 || m > 12) return null;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+export function getManilaMonthWindow(monthKey: string): {
+  startKey: string;
+  endKey: string;
+  keys: string[];
+  todayKey: string;
+  monthKey: string;
+} {
+  const [year, month] = monthKey.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(year, month, 0, 12, 0, 0)).getUTCDate();
+  const keys: string[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    keys.push(`${monthKey}-${String(d).padStart(2, "0")}`);
+  }
+  return {
+    startKey: keys[0]!,
+    endKey: keys[keys.length - 1]!,
+    keys,
+    todayKey: manilaDateKey(new Date()),
+    monthKey,
+  };
+}
+
+export function addManilaMonths(monthKey: string, delta: number): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1 + delta, 1, 12, 0, 0));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export function formatManilaMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: MANILA_TZ,
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Date.UTC(y, m - 1, 1, 12, 0, 0)));
+}
+
 export function isManilaToday(value: unknown): boolean {
   if (!value) return false;
 

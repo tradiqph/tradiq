@@ -1,11 +1,15 @@
 import { Firestore } from "firebase-admin/firestore";
-import { getRemainingScheduledPayouts } from "@/lib/investments";
+import { getExpectedCalendarDayPayouts } from "@/lib/investments";
 import { fetchSubscriptionCommissions } from "@/lib/console/commissions";
 import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 import {
   formatManilaDateLabel,
-  getManilaDateWindow,
+  formatManilaMonthLabel,
+  getManilaMonthWindow,
+  LIABILITY_CALENDAR_MIN_MONTH,
+  manilaCurrentMonthKey,
   manilaDateKey,
+  parseMonthParam,
   toDateFromUnknown,
 } from "@/lib/manila-time";
 import { isSuperAdminRole } from "@/lib/roles";
@@ -23,13 +27,14 @@ export interface LiabilityCalendarDay {
   approvedWithdrawals: number;
   netExpectedCashout: number;
   isToday: boolean;
+  isPast: boolean;
 }
 
 export async function buildLiabilityCalendar(
   db: Firestore,
-  horizonDays = 60
+  monthKey = manilaCurrentMonthKey()
 ) {
-  const window = getManilaDateWindow(horizonDays);
+  const window = getManilaMonthWindow(monthKey);
   const buckets = new Map<
     string,
     { interest: number; principal: number; approvedWithdrawals: number }
@@ -39,12 +44,17 @@ export async function buildLiabilityCalendar(
     buckets.set(key, { interest: 0, principal: 0, approvedWithdrawals: 0 });
   }
 
-  const activeBots = await fetchAllUserBots(db, "active", true);
-  for (const { data: bot } of activeBots) {
-    const payouts = getRemainingScheduledPayouts(
+  const [activeBots, completedBots] = await Promise.all([
+    fetchAllUserBots(db, "active", true),
+    fetchAllUserBots(db, "completed", true),
+  ]);
+
+  for (const { data: bot } of [...activeBots, ...completedBots]) {
+    const payouts = getExpectedCalendarDayPayouts(
       bot,
       window.startKey,
       window.endKey,
+      window.todayKey,
       manilaDateKey
     );
     for (const payout of payouts) {
@@ -110,6 +120,7 @@ export async function buildLiabilityCalendar(
       approvedWithdrawals,
       netExpectedCashout,
       isToday: dateKey === window.todayKey,
+      isPast: dateKey < window.todayKey,
     };
   });
 
@@ -119,6 +130,9 @@ export async function buildLiabilityCalendar(
   );
 
   return {
+    month: window.monthKey,
+    monthLabel: formatManilaMonthLabel(window.monthKey),
+    minMonth: LIABILITY_CALENDAR_MIN_MONTH,
     days,
     totals: {
       grossLiability: roundPeso(totalGrossLiability),

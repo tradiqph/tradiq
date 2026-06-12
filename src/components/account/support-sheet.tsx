@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { format } from "date-fns";
-import { Headphones, ImagePlus, Loader2, X } from "lucide-react";
+import { Headphones, ChevronDown, ImagePlus, Loader2, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +12,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { GoldButton } from "@/components/ui/gold-button";
+import { SupportAttachmentGallery } from "@/components/support/support-attachment-gallery";
+import { SupportMessageText } from "@/components/support/support-message-text";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import {
@@ -22,6 +23,11 @@ import {
   SUPPORT_ALLOWED_IMAGE_TYPES,
   type SupportTicket,
 } from "@/lib/support";
+import { cn } from "@/lib/utils";
+
+function getTicketSubject(ticket: SupportTicket): string {
+  return ticket.subject?.trim() || ticket.categoryLabel;
+}
 
 interface SupportSheetProps {
   open: boolean;
@@ -40,6 +46,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [view, setView] = useState<"list" | "new">("list");
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     if (!user) return;
@@ -61,6 +68,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
 
   useEffect(() => {
     if (open && user) void loadTickets();
+    if (!open) setExpandedTicketId(null);
   }, [open, user, loadTickets]);
 
   const resetForm = () => {
@@ -164,16 +172,16 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[90dvh] overflow-y-auto border-amber-500/20 bg-zinc-950 text-white"
+        className="flex max-h-[90dvh] min-h-[60dvh] flex-col overflow-hidden rounded-t-2xl border-amber-500/20 bg-zinc-950 text-white"
       >
-        <SheetHeader>
+        <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2 text-white">
             <Headphones className="h-5 w-5 text-amber-400" />
             Support
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex shrink-0 gap-2 px-4">
           <button
             type="button"
             onClick={() => setView("list")}
@@ -198,6 +206,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
           </button>
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         {view === "list" ? (
           <div className="mt-4 space-y-3">
             {loadingTickets ? (
@@ -209,68 +218,82 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                 No open tickets. Submit a new request if you need help.
               </p>
             ) : (
-              tickets.map((t) => (
-                <div
-                  key={t.id}
-                  className="rounded-xl border border-white/5 bg-black/40 p-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-white">
-                        {t.categoryLabel}
-                        {t.subject ? ` — ${t.subject}` : ""}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {t.createdAt
-                          ? format(
-                              new Date(t.createdAt.seconds * 1000),
-                              "MMM d, yyyy h:mm a"
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-400">
-                      Open
-                    </span>
+              tickets.map((t) => {
+                const isExpanded = expandedTicketId === t.id;
+
+                return (
+                  <div
+                    key={t.id}
+                    className="overflow-hidden rounded-xl border border-white/5 bg-black/40"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedTicketId(isExpanded ? null : t.id)
+                      }
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white">
+                          {getTicketSubject(t)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-400">
+                        Open
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 shrink-0 text-zinc-500 transition-transform",
+                          isExpanded && "rotate-180"
+                        )}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-white/5 px-3 pb-3 pt-2">
+                        <p className="text-xs text-amber-400/80">
+                          {t.categoryLabel}
+                          {t.subject ? ` · ${t.subject}` : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {t.createdAt
+                            ? format(
+                                new Date(t.createdAt.seconds * 1000),
+                                "MMM d, yyyy h:mm a"
+                              )
+                            : "—"}
+                        </p>
+                        <SupportMessageText className="mt-2 text-sm text-zinc-400">
+                          {t.message}
+                        </SupportMessageText>
+                        {t.replies && t.replies.length > 0 && (
+                          <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
+                            {t.replies.map((r) => (
+                              <div key={r.id} className="text-xs">
+                                <span className="font-medium text-amber-400/90">
+                                  {r.authorRole === "admin" ? "Support" : "You"}
+                                </span>
+                                <SupportMessageText className="mt-0.5 text-zinc-400">
+                                  {r.body}
+                                </SupportMessageText>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {t.attachmentUrls.length > 0 && (
+                          <div className="mt-3">
+                            <SupportAttachmentGallery
+                              urls={t.attachmentUrls}
+                              thumbnailClassName="h-14 w-14"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <p className="mt-2 text-sm text-zinc-400 line-clamp-3">
-                    {t.message}
-                  </p>
-                  {t.replies && t.replies.length > 0 && (
-                    <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
-                      {t.replies.map((r) => (
-                        <div key={r.id} className="text-xs">
-                          <span className="font-medium text-amber-400/90">
-                            {r.authorRole === "admin" ? "Support" : "You"}:
-                          </span>{" "}
-                          <span className="text-zinc-400">{r.body}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {t.attachmentUrls.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {t.attachmentUrls.map((url) => (
-                        <a
-                          key={url}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="relative h-14 w-14 overflow-hidden rounded-lg border border-white/10"
-                        >
-                          <Image
-                            src={url}
-                            alt="Attachment"
-                            fill
-                            className="object-cover"
-                            unoptimized
-                          />
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
             <GoldButton
               type="button"
@@ -387,6 +410,7 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
             </GoldButton>
           </div>
         )}
+        </div>
       </SheetContent>
     </Sheet>
   );
