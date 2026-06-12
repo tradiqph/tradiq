@@ -41,12 +41,7 @@ Mobile-first investment platform with copy-trading bots, QR Ph deposits, multi-l
 
 Hidden at `/console` — set `role: "admin"` on your user document in Firestore.
 
-## Paymongo Webhook
 
-Point webhook to `https://your-domain.com/api/paymongo/webhook` with events:
-- `payment.paid`
-- `qrph.expired`
-- `payment.failed`
 
 ## Daily Bot Earnings
 
