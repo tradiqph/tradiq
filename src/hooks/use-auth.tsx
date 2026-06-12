@@ -42,6 +42,7 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   refreshPinStatus: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -287,6 +288,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updatePassword(auth.currentUser, newPassword);
   };
 
+  const updateDisplayName = async (displayName: string) => {
+    if (!user) {
+      throw new Error("You must be signed in to update your name");
+    }
+
+    const token = await user.getIdToken();
+    const res = await fetch("/api/account/profile", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ displayName }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      displayName?: string;
+    };
+
+    if (!res.ok) {
+      throw new Error(
+        typeof data.error === "string" ? data.error : "Failed to update name"
+      );
+    }
+
+    const nextName = data.displayName ?? displayName;
+    if (auth?.currentUser) {
+      await updateProfile(auth.currentUser, { displayName: nextName });
+    }
+    await refreshProfile();
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -300,6 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         refreshPinStatus,
         changePassword,
+        updateDisplayName,
       }}
     >
       {children}

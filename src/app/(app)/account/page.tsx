@@ -113,6 +113,7 @@ function AccountContent() {
     refreshProfile,
     refreshPinStatus,
     changePassword,
+    updateDisplayName,
   } = useAuth();
   const [accounts, setAccounts] = useState<
     (WithdrawalAccount & { id: string })[]
@@ -136,6 +137,9 @@ function AccountContent() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("support") === "1") {
@@ -313,6 +317,25 @@ function AccountContent() {
     }
   };
 
+  const handleUpdateName = async () => {
+    const trimmed = nameDraft.trim();
+    if (trimmed.length < 2) {
+      toast.error("Name must be at least 2 characters");
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      await updateDisplayName(trimmed);
+      toast.success("Display name updated");
+      setNameOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update name");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
       toast.error("New password must be at least 6 characters");
@@ -394,6 +417,10 @@ function AccountContent() {
             icon={User}
             title={profile?.displayName || "Display Name"}
             subtitle="Tap to update your name"
+            onClick={() => {
+              setNameDraft(profile?.displayName ?? "");
+              setNameOpen(true);
+            }}
           />
           <div className="flex items-center gap-3 border-t border-white/5 px-4 py-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
@@ -616,6 +643,49 @@ function AccountContent() {
             >
               {deleting ? "Deleting..." : "Delete"}
             </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={nameOpen}
+        onOpenChange={(open) => {
+          setNameOpen(open);
+          if (!open) setNameDraft("");
+        }}
+      >
+        <DialogContent className="max-w-sm border-amber-500/20 bg-zinc-950 text-white">
+          <DialogHeader>
+            <DialogTitle>Update Display Name</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-zinc-400">Display Name</Label>
+              <Input
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                placeholder="Your name"
+                maxLength={50}
+                className="border-amber-500/20 bg-black"
+                autoComplete="name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-zinc-400">Email</Label>
+              <p className="rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-zinc-500">
+                {profile?.email ?? "—"}
+              </p>
+              <p className="text-[10px] text-zinc-600">
+                Email cannot be changed from the app.
+              </p>
+            </div>
+            <GoldButton
+              onClick={() => void handleUpdateName()}
+              disabled={savingName || !nameDraft.trim()}
+              className="w-full"
+            >
+              {savingName ? "Saving..." : "Save Name"}
+            </GoldButton>
           </div>
         </DialogContent>
       </Dialog>

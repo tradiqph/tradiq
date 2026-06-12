@@ -18,6 +18,13 @@ export const pinSchema = z
   .string()
   .regex(/^\d{4,6}$/, "PIN must be 4-6 digits");
 
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters")
+  .max(50, "Name must be 50 characters or less")
+  .regex(/^[\p{L}\p{N}\s.'-]+$/u, "Name contains invalid characters");
+
 export const depositAmountSchema = z
   .number()
   .finite()
