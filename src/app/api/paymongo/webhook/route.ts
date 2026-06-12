@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { fulfillPaidDeposit } from "@/lib/deposit-fulfillment";
+import {
+  extractPaymongoTransferId,
+  syncWithdrawalTransferStatus,
+} from "@/lib/console/withdrawal-transfer-webhook";
 import { verifyPaymongoSignature } from "@/lib/paymongo";
 import { apiError } from "@/lib/security/api-errors";
 import { isProduction } from "@/lib/security/env";
@@ -10,18 +14,6 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get("paymongo-signature");
   const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
 
-  if (!webhookSecret) {
-    console.error("[paymongo/webhook] PAYMONGO_WEBHOOK_SECRET is not set");
-    return NextResponse.json(
-      { error: "Webhook not configured" },
-      { status: 503 }
-    );
-  }
-
-  if (!verifyPaymongoSignature(rawBody, signature, webhookSecret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
   const db = getAdminDb();
   if (!db) {
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
@@ -29,6 +21,7 @@ export async function POST(request: NextRequest) {
 
   let event: {
     data?: {
+      id?: string;
       attributes?: {
         type?: string;
         data?: {
@@ -40,6 +33,7 @@ export async function POST(request: NextRequest) {
           };
         };
       };
+      transfers?: Array<{ id?: string }>;
     };
   };
 
@@ -47,6 +41,38 @@ export async function POST(request: NextRequest) {
     event = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const transferId = extractPaymongoTransferId(event);
+  if (transferId) {
+    try {
+      const synced = await syncWithdrawalTransferStatus(db, transferId);
+      if (isProduction()) {
+        console.info(
+          `[paymongo/webhook] transfer ${transferId} callback${synced ? " synced" : " (no matching withdrawal)"}`
+        );
+      }
+    } catch (err) {
+      return apiError(
+        "paymongo/webhook transfer",
+        err,
+        500,
+        "Transfer webhook processing failed"
+      );
+    }
+    return NextResponse.json({ received: true });
+  }
+
+  if (!webhookSecret) {
+    console.error("[paymongo/webhook] PAYMONGO_WEBHOOK_SECRET is not set");
+    return NextResponse.json(
+      { error: "Webhook not configured" },
+      { status: 503 }
+    );
+  }
+
+  if (!verifyPaymongoSignature(rawBody, signature, webhookSecret)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   const eventType = event.data?.attributes?.type;

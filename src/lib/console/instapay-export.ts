@@ -23,11 +23,25 @@ const DETAILS_SHEET = "Details";
 const DATA_START_ROW = 2;
 const MAX_TEMPLATE_ROWS = 999;
 
-function payoutAmount(row: InstapayWithdrawalRow): number {
-  if (typeof row.netPayout === "number" && row.netPayout > 0) {
-    return Math.round(row.netPayout * 100) / 100;
+export function resolveWithdrawalPayoutPeso(
+  amount: number,
+  netPayout?: number
+): number {
+  if (typeof netPayout === "number" && netPayout > 0) {
+    return Math.round(netPayout * 100) / 100;
   }
-  return Math.round(row.amount * 100) / 100;
+  return Math.round(amount * 100) / 100;
+}
+
+export function resolveWithdrawalPayoutCentavos(
+  amount: number,
+  netPayout?: number
+): number {
+  return Math.round(resolveWithdrawalPayoutPeso(amount, netPayout) * 100);
+}
+
+function payoutAmount(row: InstapayWithdrawalRow): number {
+  return resolveWithdrawalPayoutPeso(row.amount, row.netPayout);
 }
 
 function buildRemarks(row: InstapayWithdrawalRow): string {

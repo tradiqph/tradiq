@@ -69,6 +69,8 @@ export interface WithdrawalAccount {
   bankName?: string;
 }
 
+export type PaymongoTransferStatus = "pending" | "succeeded" | "failed";
+
 export interface WithdrawalRequest {
   userId: string;
   userEmail: string;
@@ -81,6 +83,14 @@ export interface WithdrawalRequest {
   createdAt: Timestamp;
   reviewedAt?: Timestamp;
   reviewedBy?: string;
+  paymongoTransferId?: string;
+  paymongoTransferStatus?: PaymongoTransferStatus;
+  paidAt?: Timestamp;
+  paidBy?: string;
+  payError?: string;
+  payoutInFlight?: boolean;
+  payoutLockedBy?: string;
+  payoutLockedAt?: Timestamp;
 }
 
 export interface Deposit {
