@@ -104,6 +104,14 @@ export const adminResolveSchema = z.object({
   ticketId: z.string().min(1).max(128),
 });
 
+export const userReplySchema = z.object({
+  ticketId: z.string().min(1).max(128),
+  message: z
+    .string()
+    .min(1)
+    .max(SUPPORT_MAX_MESSAGE_LENGTH),
+});
+
 export function getCategoryLabel(value: SupportCategory): string {
   return (
     SUPPORT_CATEGORIES.find((c) => c.value === value)?.label ?? "Other"

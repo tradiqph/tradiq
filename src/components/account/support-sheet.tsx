@@ -29,6 +29,13 @@ function getTicketSubject(ticket: SupportTicket): string {
   return ticket.subject?.trim() || ticket.categoryLabel;
 }
 
+function canUserReply(ticket: SupportTicket): boolean {
+  return (
+    ticket.status === "open" &&
+    (ticket.replies?.some((r) => r.authorRole === "admin") ?? false)
+  );
+}
+
 interface SupportSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,6 +56,8 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
   const [view, setView] = useState<"list" | "new">("list");
   const [listFilter, setListFilter] = useState<"open" | "resolved">("open");
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyingTicketId, setReplyingTicketId] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     if (!user) return;
@@ -84,6 +93,8 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
     if (!open) {
       setExpandedTicketId(null);
       setListFilter("open");
+      setReplyDrafts({});
+      setReplyingTicketId(null);
     }
   }, [open, user, loadTickets]);
 
@@ -148,6 +159,43 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
       return paths;
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleUserReply = async (ticketId: string) => {
+    if (!user) return;
+    const draft = replyDrafts[ticketId]?.trim() ?? "";
+    if (!draft) {
+      toast.error("Enter a message");
+      return;
+    }
+
+    setReplyingTicketId(ticketId);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/support/tickets/reply", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ticketId, message: draft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to send reply");
+
+      toast.success("Reply sent");
+      setReplyDrafts((prev) => {
+        const next = { ...prev };
+        delete next[ticketId];
+        return next;
+      });
+      setExpandedTicketId(ticketId);
+      await loadTickets();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send reply");
+    } finally {
+      setReplyingTicketId(null);
     }
   };
 
@@ -346,6 +394,47 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                               urls={t.attachmentUrls}
                               thumbnailClassName="h-14 w-14"
                             />
+                          </div>
+                        )}
+                        {t.status === "open" && !canUserReply(t) && (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            Support will reply here. You can respond once they
+                            message you.
+                          </p>
+                        )}
+                        {canUserReply(t) && (
+                          <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
+                            <textarea
+                              value={replyDrafts[t.id] ?? ""}
+                              onChange={(e) =>
+                                setReplyDrafts((prev) => ({
+                                  ...prev,
+                                  [t.id]: e.target.value,
+                                }))
+                              }
+                              rows={2}
+                              maxLength={2000}
+                              placeholder="Type your reply…"
+                              className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white placeholder:text-zinc-600"
+                            />
+                            <GoldButton
+                              type="button"
+                              className="w-full"
+                              disabled={
+                                replyingTicketId === t.id ||
+                                !(replyDrafts[t.id]?.trim())
+                              }
+                              onClick={() => void handleUserReply(t.id)}
+                            >
+                              {replyingTicketId === t.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Sending…
+                                </>
+                              ) : (
+                                "Send reply"
+                              )}
+                            </GoldButton>
                           </div>
                         )}
                       </div>
