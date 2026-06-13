@@ -4,6 +4,7 @@ import {
   Users,
   TrendingUp,
   Gift,
+  Network,
   FileText,
   Headphones,
   type LucideIcon,
@@ -48,6 +49,12 @@ export const consoleNavItems: ConsoleNavItem[] = [
     label: "Commissions",
     shortLabel: "Commish",
     icon: Gift,
+  },
+  {
+    href: "/console/referral-network",
+    label: "Referral Network",
+    shortLabel: "Network",
+    icon: Network,
   },
   {
     href: "/console/reports",

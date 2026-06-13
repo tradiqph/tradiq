@@ -12,6 +12,7 @@ const reportTypes = [
   { value: "withdrawals", label: "Withdrawals" },
   { value: "members", label: "Members" },
   { value: "referrals", label: "Referrals (by level)" },
+  { value: "referral-network", label: "Referral network" },
   { value: "investments", label: "Investments" },
 ];
 

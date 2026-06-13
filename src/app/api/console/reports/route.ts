@@ -163,6 +163,30 @@ export async function GET(request: NextRequest) {
       }));
       break;
     }
+    case "referral-network": {
+      filename = "referral-network";
+      const snap = await auth.db.collection("users").get();
+      rows = snap.docs
+        .map((d) => {
+          const data = d.data();
+          const totals = getReferralTotals(
+            normalizeReferralStats(data.referralStats)
+          );
+          return {
+            memberName: data.displayName || data.email || "",
+            email: data.email ?? "",
+            totalNetworkMembers: totals.totalMembers,
+            totalNetworkInvested: Math.round(totals.totalInvested * 100) / 100,
+            totalCommissionEarned: Math.round(totals.totalEarned * 100) / 100,
+          };
+        })
+        .sort((a, b) => {
+          const earnedDiff = b.totalCommissionEarned - a.totalCommissionEarned;
+          if (earnedDiff !== 0) return earnedDiff;
+          return b.totalNetworkMembers - a.totalNetworkMembers;
+        });
+      break;
+    }
     case "investments": {
       filename = "investments";
       const { investments } = await fetchAllInvestments(auth.db, "all");
