@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Query } from "firebase-admin/firestore";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 import {
   adminReplySchema,
@@ -30,28 +30,46 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, Number(params.get("page") ?? 1) || 1);
   const cursor = params.get("cursor")?.trim() || null;
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  const dateIsAll = date === "all";
+  if (!dateIsAll && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return apiBadRequest("Invalid date format");
   }
 
   try {
-    const { start, end } = manilaDayBounds(date);
+    let query: Query;
 
-    let query = db
-      .collection("supportTickets")
-      .where("createdAt", ">=", start)
-      .where("createdAt", "<", end)
-      .orderBy("createdAt", "desc")
-      .limit(PAGE_SIZE + 1);
+    if (dateIsAll) {
+      if (status === "open" || status === "resolved") {
+        query = db
+          .collection("supportTickets")
+          .where("status", "==", status)
+          .orderBy("createdAt", "desc")
+          .limit(PAGE_SIZE + 1);
+      } else {
+        query = db
+          .collection("supportTickets")
+          .orderBy("createdAt", "desc")
+          .limit(PAGE_SIZE + 1);
+      }
+    } else {
+      const { start, end } = manilaDayBounds(date);
 
-    if (status === "open" || status === "resolved") {
-      query = db
-        .collection("supportTickets")
-        .where("status", "==", status)
-        .where("createdAt", ">=", start)
-        .where("createdAt", "<", end)
-        .orderBy("createdAt", "desc")
-        .limit(PAGE_SIZE + 1);
+      if (status === "open" || status === "resolved") {
+        query = db
+          .collection("supportTickets")
+          .where("status", "==", status)
+          .where("createdAt", ">=", start)
+          .where("createdAt", "<", end)
+          .orderBy("createdAt", "desc")
+          .limit(PAGE_SIZE + 1);
+      } else {
+        query = db
+          .collection("supportTickets")
+          .where("createdAt", ">=", start)
+          .where("createdAt", "<", end)
+          .orderBy("createdAt", "desc")
+          .limit(PAGE_SIZE + 1);
+      }
     }
 
     if (cursor) {

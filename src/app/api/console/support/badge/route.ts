@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const scope = request.nextUrl.searchParams.get("scope") ?? "all";
+    const scope = request.nextUrl.searchParams.get("scope") ?? "today";
     const date = request.nextUrl.searchParams.get("date")?.trim();
 
     if (scope === "today") {

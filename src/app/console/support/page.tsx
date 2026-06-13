@@ -1,30 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import { Calendar } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
 import { ConsoleLoader } from "@/components/console/console-loader";
 import { GoldButton } from "@/components/ui/gold-button";
 import { SupportAttachmentGallery } from "@/components/support/support-attachment-gallery";
 import { SupportMessageText } from "@/components/support/support-message-text";
-import { useConsoleBadges } from "@/contexts/console-badges";
+import {
+  useConsoleBadges,
+  type SupportBadgeScope,
+} from "@/contexts/console-badges";
 import { useAuth } from "@/hooks/use-auth";
+import { manilaTodayKey } from "@/lib/manila-time";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { SupportTicket } from "@/lib/support";
 
-function todayIso(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila",
-  }).format(new Date());
+type StatusFilter = "all" | "open" | "resolved";
+type DateFilterMode = "today" | "all" | "date";
+
+function badgeScopeForMode(
+  mode: DateFilterMode,
+  pickedDate: string
+): SupportBadgeScope {
+  if (mode === "all") return { mode: "all" };
+  if (mode === "date") return { mode: "date", date: pickedDate };
+  return { mode: "today" };
 }
 
-type StatusFilter = "all" | "open" | "resolved";
+function apiDateForMode(mode: DateFilterMode, pickedDate: string): string {
+  if (mode === "all") return "all";
+  if (mode === "date") return pickedDate;
+  return manilaTodayKey();
+}
 
 export default function ConsoleSupportPage() {
   const { user } = useAuth();
-  const { refetchSupportBadge } = useConsoleBadges();
-  const [date, setDate] = useState(todayIso);
+  const { refetchSupportBadge, setSupportBadgeScope } = useConsoleBadges();
+  const [dateMode, setDateMode] = useState<DateFilterMode>("today");
+  const [pickedDate, setPickedDate] = useState(manilaTodayKey);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selected, setSelected] = useState<SupportTicket | null>(null);
@@ -37,6 +53,16 @@ export default function ConsoleSupportPage() {
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [acting, setActing] = useState(false);
 
+  const listDate = useMemo(
+    () => apiDateForMode(dateMode, pickedDate),
+    [dateMode, pickedDate]
+  );
+
+  useEffect(() => {
+    setSupportBadgeScope(badgeScopeForMode(dateMode, pickedDate));
+    void refetchSupportBadge();
+  }, [dateMode, pickedDate, setSupportBadgeScope, refetchSupportBadge]);
+
   const fetchTickets = useCallback(
     async (cursor: string | null, pageNum: number) => {
       if (!user) return;
@@ -45,7 +71,7 @@ export default function ConsoleSupportPage() {
       try {
         const token = await user.getIdToken();
         const params = new URLSearchParams({
-          date,
+          date: listDate,
           status,
           page: String(pageNum),
         });
@@ -67,7 +93,7 @@ export default function ConsoleSupportPage() {
         setLoading(false);
       }
     },
-    [user, date, status, refetchSupportBadge]
+    [user, listDate, status, refetchSupportBadge]
   );
 
   const loadDetail = async (ticketId: string) => {
@@ -88,7 +114,7 @@ export default function ConsoleSupportPage() {
     setPage(1);
     setCursors([null]);
     void fetchTickets(null, 1);
-  }, [fetchTickets, date, status]);
+  }, [fetchTickets, listDate, status]);
 
   const goNext = () => {
     if (!hasMore || !nextCursor) return;
@@ -165,6 +191,9 @@ export default function ConsoleSupportPage() {
     }
   };
 
+  const dateInputValue =
+    dateMode === "today" ? manilaTodayKey() : pickedDate;
+
   if (error) return <ConsoleError message={error} />;
 
   return (
@@ -177,14 +206,51 @@ export default function ConsoleSupportPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="text-xs text-zinc-500">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="mt-1 block rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          {(["today", "all"] as DateFilterMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => {
+                setDateMode(mode);
+                if (mode === "today") {
+                  setPickedDate(manilaTodayKey());
+                }
+              }}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs capitalize",
+                dateMode === mode
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "text-zinc-500 hover:text-white"
+              )}
+            >
+              {mode}
+            </button>
+          ))}
+          <label
+            className={cn(
+              "flex items-center gap-2 rounded-full border px-2 py-1 text-xs",
+              dateMode === "date"
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                : "border-white/10 text-zinc-400"
+            )}
+          >
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+            <span className="sr-only">Pick date</span>
+            <input
+              type="date"
+              value={dateInputValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value) return;
+                setPickedDate(value);
+                setDateMode(
+                  value === manilaTodayKey() ? "today" : "date"
+                );
+              }}
+              className="bg-transparent text-xs text-white [color-scheme:dark]"
+            />
+          </label>
         </div>
         <div className="flex gap-1">
           {(["all", "open", "resolved"] as StatusFilter[]).map((s) => (
@@ -211,7 +277,7 @@ export default function ConsoleSupportPage() {
             <ConsoleLoader variant="section" />
           ) : tickets.length === 0 ? (
             <p className="p-6 text-sm text-zinc-500">
-              No tickets for this date
+              {dateMode === "all" ? "No tickets" : "No tickets for this date"}
             </p>
           ) : (
             <ul className="divide-y divide-white/5">
