@@ -19,7 +19,7 @@ export const MARKETING_MATERIALS: MarketingMaterial[] = [
     id: "referral-commission",
     title: "Referral & Commission",
     description:
-      "5-level referral program — 15% / 3% / 2% / 1% / 1% commission tiers.",
+      "5-level commission tiers with earnings example — referral bot subscription × rate (e.g. ₱30,000 × 15% = ₱4,500).",
     filename: "tradiq-referral-commission.png",
     href: "/assets/marketing/referral-commission.png",
   },
@@ -27,7 +27,7 @@ export const MARKETING_MATERIALS: MarketingMaterial[] = [
     id: "3-percent-daily",
     title: "3% Daily Returns",
     description:
-      "Highlight daily bot earnings and Smart Wallet Engine performance.",
+      "Shows bot investment, 3% daily rate, and calculated daily earnings (e.g. ₱10,000 → +₱300/day).",
     filename: "tradiq-3-percent-daily.png",
     href: "/assets/marketing/3-percent-daily.png",
   },
