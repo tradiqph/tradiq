@@ -96,8 +96,7 @@ service cloud.firestore {
           && request.resource.data.type == 'deposit'
           && request.resource.data.status == 'pending'
           && request.resource.data.amount is number
-          && request.resource.data.amount >= 500
-          && request.resource.data.amount <= 10000;
+          && request.resource.data.amount >= 500;
         allow create: if isOwner(userId)
           && clientBotSubscribeEnabled()
           && request.resource.data.type == 'bot_subscribe'
@@ -165,7 +164,6 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.amount is number
         && request.resource.data.amount >= 500
-        && request.resource.data.amount <= 10000
         && request.resource.data.paymongoIntentId is string
         && request.resource.data.qrImageUrl is string;
       allow update: if isSignedIn()

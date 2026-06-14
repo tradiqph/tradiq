@@ -156,7 +156,7 @@ const BOTS_CATALOG = [
 const PLATFORM_CONFIG = {
   dailyBotRate: 0.03,
   referralRates: [0.05, 0.02, 0.01],
-  depositPresets: [500, 1000, 3000, 5000, 10000],
+  depositPresets: [500, 1000, 3000, 5000, 10000, 20000, 50000, 100000],
   botPresets: [500, 1000, 3000, 5000, 10000],
   currency: "PHP",
   minDeposit: 500,

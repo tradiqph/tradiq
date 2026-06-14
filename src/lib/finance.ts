@@ -6,7 +6,9 @@ export const DAILY_BOT_RATE = 0.03;
  */
 export const REFERRAL_RATES = [0.15, 0.03, 0.02, 0.01, 0.01] as const;
 export const REFERRAL_SUBSCRIPTION_TIERS = [500, 1000, 5000] as const;
-export const DEPOSIT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;
+export const DEPOSIT_PRESETS = [
+  500, 1000, 3000, 5000, 10000, 20000, 50000, 100000,
+] as const;
 export const BOT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;
 
 export function formatPeso(amount: number): string {
@@ -58,7 +60,6 @@ export function calculateDailyEarning(botAmount: number): number {
 }
 
 export const DEPOSIT_MIN_AMOUNT = 500;
-export const DEPOSIT_MAX_AMOUNT = 10000;
 export const BOT_MIN_AMOUNT = 500;
 export const BOT_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_MIN_AMOUNT = 300;
@@ -69,9 +70,6 @@ export function validateDepositAmount(amount: number): string | null {
   if (!amount || amount <= 0) return "Enter a valid amount";
   if (amount < DEPOSIT_MIN_AMOUNT) {
     return `Minimum deposit is ${formatPeso(DEPOSIT_MIN_AMOUNT)}`;
-  }
-  if (amount > DEPOSIT_MAX_AMOUNT) {
-    return `Maximum deposit is ${formatPeso(DEPOSIT_MAX_AMOUNT)}`;
   }
   return null;
 }

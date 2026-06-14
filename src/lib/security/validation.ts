@@ -3,7 +3,6 @@ import {
   WITHDRAWAL_MIN_AMOUNT,
   WITHDRAWAL_MAX_AMOUNT,
   DEPOSIT_MIN_AMOUNT,
-  DEPOSIT_MAX_AMOUNT,
   BOT_MIN_AMOUNT,
   BOT_MAX_AMOUNT,
 } from "@/lib/finance";
@@ -28,8 +27,7 @@ export const displayNameSchema = z
 export const depositAmountSchema = z
   .number()
   .finite()
-  .min(DEPOSIT_MIN_AMOUNT, `Minimum deposit is ₱${DEPOSIT_MIN_AMOUNT}`)
-  .max(DEPOSIT_MAX_AMOUNT, `Maximum deposit is ₱${DEPOSIT_MAX_AMOUNT}`);
+  .min(DEPOSIT_MIN_AMOUNT, `Minimum deposit is ₱${DEPOSIT_MIN_AMOUNT}`);
 
 export const botAmountSchema = z
   .number()
