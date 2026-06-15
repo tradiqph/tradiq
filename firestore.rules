@@ -60,6 +60,7 @@ service cloud.firestore {
         'referralStats',
         'referralNetworkTracked',
         'signupReferralCode',
+        'pushNotificationsEnabled',
         'email',
       ];
     }
@@ -138,6 +139,10 @@ service cloud.firestore {
       match /withdrawalAccounts/{accountId} {
         allow read, create: if isOwner(userId);
         allow update, delete: if isOwner(userId);
+      }
+
+      match /pushTokens/{tokenId} {
+        allow read, write: if false;
       }
     }
 

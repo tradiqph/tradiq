@@ -5,6 +5,12 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { fulfillPaidDeposit } from "./deposit-fulfillment";
 import { recordAccrualRun, runBotAccrualBatch } from "./bot-accrual";
+import {
+  dailyEarningPushMessage,
+  finalEarningPushMessage,
+  principalReturnPushMessage,
+  sendUserPush,
+} from "./push";
 
 initializeApp();
 
@@ -124,6 +130,32 @@ export const dailyBotEarnings = onSchedule(
     const db = getFirestore();
     const summary = await runBotAccrualBatch(db);
     await recordAccrualRun(db, summary, "scheduler");
+
+    for (const result of summary.results) {
+      if (!result.processed || !result.userId || result.earning == null) continue;
+
+      if (result.completed) {
+        await sendUserPush(
+          db,
+          result.userId,
+          finalEarningPushMessage(result.earning)
+        );
+        if (result.principalAmount != null) {
+          await sendUserPush(
+            db,
+            result.userId,
+            principalReturnPushMessage(result.principalAmount)
+          );
+        }
+      } else {
+        await sendUserPush(
+          db,
+          result.userId,
+          dailyEarningPushMessage(result.earning)
+        );
+      }
+    }
+
     console.log(
       `[dailyBotEarnings] due=${summary.dueCount} processed=${summary.processedCount}`
     );

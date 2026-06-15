@@ -8,7 +8,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotificationReadState } from "@/hooks/use-notification-read";
 import { useSupportUnread } from "@/hooks/use-support-unread";
 import { useTransactions } from "@/hooks/use-transactions";
-import { buildAppNotifications, buildSupportNotifications } from "@/lib/notifications";
+import {
+  buildAppNotifications,
+  buildSupportNotifications,
+  sortNotificationsChronologically,
+} from "@/lib/notifications";
 
 interface AppHeaderProps {
   title?: string;
@@ -31,25 +35,32 @@ export function AppHeader({
   rightBadge,
 }: AppHeaderProps) {
   const { profile } = useAuth();
-  const { transactions } = useTransactions(10);
+  const { transactions, referralSourceNames } = useTransactions(25);
   const { count: supportUnreadCount, items: supportNotificationItems, markRead: markSupportRead } =
     useSupportUnread();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const notifications = useMemo(() => {
+  const rawNotifications = useMemo(() => {
     const supportNotifications = buildSupportNotifications(
       supportNotificationItems
     );
-    const appNotifications = buildAppNotifications(profile, transactions);
-    return [...supportNotifications, ...appNotifications];
-  }, [profile, transactions, supportNotificationItems]);
+    const appNotifications = buildAppNotifications(
+      profile,
+      transactions,
+      referralSourceNames
+    );
+    return sortNotificationsChronologically([
+      ...supportNotifications,
+      ...appNotifications,
+    ]);
+  }, [profile, transactions, supportNotificationItems, referralSourceNames]);
 
   const handleNotificationsOpen = useCallback(() => {
     void markSupportRead();
   }, [markSupportRead]);
 
-  const { hasUnread } = useNotificationReadState(
-    notifications,
+  const { hasUnread, markSeen, notifications } = useNotificationReadState(
+    rawNotifications,
     notificationsOpen,
     handleNotificationsOpen
   );
@@ -116,6 +127,7 @@ export function AppHeader({
         open={notificationsOpen}
         onOpenChange={setNotificationsOpen}
         notifications={notifications}
+        onMarkSeen={(id) => markSeen(id)}
       />
     </>
   );

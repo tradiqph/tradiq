@@ -175,7 +175,7 @@ export function formatTransactionDate(
   return format(tx.createdAt.toDate(), "MMM d, yyyy, h:mm a");
 }
 
-function getReferralSourceLabel(
+export function getReferralSourceName(
   tx: Pick<Transaction, "metadata">,
   referralSourceNames?: Record<string, string>
 ): string | null {
@@ -209,7 +209,7 @@ export function getTransactionSubtitle(
   const type = resolveTransactionType(tx);
 
   if (type === "referral") {
-    const source = getReferralSourceLabel(tx, referralSourceNames);
+    const source = getReferralSourceName(tx, referralSourceNames);
     const level = tx.metadata?.level;
     const parts: string[] = [];
 

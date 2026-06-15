@@ -33,10 +33,12 @@ export function useNotificationReadState(
 ) {
   const [seenIds, setSeenIds] = useState<string[]>(readSeenIds);
 
-  const markSeen = useCallback((ids: string[]) => {
-    if (ids.length === 0) return;
+  const markSeen = useCallback((ids: string | string[]) => {
+    const nextIds = Array.isArray(ids) ? ids : [ids];
+    if (nextIds.length === 0) return;
+
     setSeenIds((current) => {
-      const merged = [...new Set([...current, ...ids])];
+      const merged = [...new Set([...current, ...nextIds])];
       persistSeenIds(merged);
       return merged;
     });
@@ -45,13 +47,17 @@ export function useNotificationReadState(
   useEffect(() => {
     if (!sheetOpen) return;
     onSheetOpen?.();
-    markSeen(notifications.map((item) => item.id));
-  }, [sheetOpen, notifications, markSeen, onSheetOpen]);
+  }, [sheetOpen, onSheetOpen]);
 
   const seen = new Set(seenIds);
   const hasUnread =
     notifications.length > 0 &&
     notifications.some((item) => !seen.has(item.id));
 
-  return { hasUnread, markSeen };
+  const withUnreadState = notifications.map((item) => ({
+    ...item,
+    unread: !seen.has(item.id),
+  }));
+
+  return { hasUnread, markSeen, seenIds: seen, notifications: withUnreadState };
 }

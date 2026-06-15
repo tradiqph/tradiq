@@ -23,6 +23,7 @@ export interface UserProfile {
   referralNetworkTracked?: boolean;
   /** Server-stored code for retry until referredBy is linked */
   signupReferralCode?: string;
+  pushNotificationsEnabled?: boolean;
 }
 
 export type TransactionType =

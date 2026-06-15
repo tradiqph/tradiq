@@ -12,6 +12,8 @@ import {
   serializeTicket,
   todayManilaDateString,
 } from "@/lib/support-tickets";
+import { supportReplyPushMessage } from "@/lib/push/copy";
+import { sendUserPush } from "@/lib/push/send-user-push";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
 
 const PAGE_SIZE = 20;
@@ -129,6 +131,12 @@ export async function PATCH(request: NextRequest) {
       }
 
       const message = sanitizeSupportText(parsed.data.message, 2000);
+      const ticketRef = db.collection("supportTickets").doc(parsed.data.ticketId);
+      const ticketSnap = await ticketRef.get();
+      if (!ticketSnap.exists) {
+        return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+      }
+
       await appendReply(db, parsed.data.ticketId, {
         authorId: decoded.uid,
         authorRole: "admin",
@@ -136,8 +144,17 @@ export async function PATCH(request: NextRequest) {
         body: message,
       });
 
+      const ticketUserId = ticketSnap.data()?.userId as string | undefined;
+      if (ticketUserId) {
+        await sendUserPush(
+          db,
+          ticketUserId,
+          supportReplyPushMessage(message)
+        );
+      }
+
       const ticket = await serializeTicket(
-        await db.collection("supportTickets").doc(parsed.data.ticketId).get(),
+        await ticketRef.get(),
         true,
         db
       );

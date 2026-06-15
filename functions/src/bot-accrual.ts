@@ -64,6 +64,7 @@ export interface BotAccrualResult {
   botId: string;
   userId?: string;
   earning?: number;
+  principalAmount?: number;
   newDaysAccrued?: number;
   completed?: boolean;
   reason?: string;
@@ -179,6 +180,7 @@ export async function processOneBotAccrual(
     botId,
     userId,
     earning,
+    principalAmount: isComplete ? amount : undefined,
     newDaysAccrued,
     completed: isComplete,
   };

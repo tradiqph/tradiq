@@ -2,6 +2,8 @@
 
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { ForegroundEarningAlertsProvider } from "@/components/notifications/foreground-earning-alerts-host";
+import { PushNotificationsBootstrap } from "@/components/push/push-notifications-bootstrap";
 import { TransactionsProvider } from "@/hooks/use-transactions";
 
 export default function AppLayout({
@@ -12,6 +14,8 @@ export default function AppLayout({
   return (
     <AuthGuard>
       <TransactionsProvider>
+        <PushNotificationsBootstrap />
+        <ForegroundEarningAlertsProvider />
         <MobileShell>{children}</MobileShell>
       </TransactionsProvider>
     </AuthGuard>

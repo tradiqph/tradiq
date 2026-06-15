@@ -16,6 +16,8 @@ import {
   Download,
   Terminal,
   ImageIcon,
+  Bell,
+  Volume2,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
 import { SupportSheet } from "@/components/account/support-sheet";
@@ -49,6 +51,15 @@ import { WithdrawalAccount } from "@/types";
 import { validateWithdrawalAccount, getAccountTypeConfig } from "@/lib/withdrawal-accounts";
 import { isPwaInstalled, promptPwaInstall } from "@/lib/pwa-install";
 import { isSuperAdminRole } from "@/lib/roles";
+import {
+  enablePushNotifications,
+  disablePushNotifications,
+} from "@/components/push/push-notifications-bootstrap";
+import {
+  isNotificationSoundEnabled,
+  setNotificationSoundEnabled,
+} from "@/lib/notification-sound";
+import { cn } from "@/lib/utils";
 import type { WithdrawalAccountFormData } from "@/components/account/add-withdrawal-account-dialog";
 
 function SettingsRow({
@@ -92,6 +103,52 @@ function SettingsRow({
     <button type="button" onClick={onClick} className={className}>
       {content}
     </button>
+  );
+}
+
+function SettingsToggle({
+  icon: Icon,
+  title,
+  subtitle,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+        <Icon className="h-4 w-4 text-amber-400" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-white">{title}</p>
+        {subtitle && <p className="text-xs text-zinc-500">{subtitle}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onCheckedChange(!checked)}
+        className={cn(
+          "relative h-6 w-11 shrink-0 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+          checked ? "bg-amber-500" : "bg-zinc-700"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform",
+            checked && "translate-x-5"
+          )}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -140,6 +197,12 @@ function AccountContent() {
   const [nameOpen, setNameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [pushToggling, setPushToggling] = useState(false);
+
+  useEffect(() => {
+    setSoundEnabled(isNotificationSoundEnabled());
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("support") === "1") {
@@ -164,6 +227,32 @@ function AccountContent() {
     if (profile?.referralCode) {
       navigator.clipboard.writeText(profile.referralCode);
       toast.success("Referral code copied");
+    }
+  };
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (!user) return;
+    setPushToggling(true);
+    try {
+      const ok = enabled
+        ? await enablePushNotifications(user)
+        : await disablePushNotifications(user);
+      if (ok) {
+        await refreshProfile();
+        toast.success(
+          enabled
+            ? "Push notifications enabled"
+            : "Push notifications disabled"
+        );
+      } else {
+        toast.error(
+          enabled
+            ? "Could not enable push notifications. Check browser permission."
+            : "Could not disable push notifications"
+        );
+      }
+    } finally {
+      setPushToggling(false);
     }
   };
 
@@ -537,6 +626,30 @@ function AccountContent() {
                 : "4–6 digit PIN for login and withdrawals"
             }
             onClick={() => (pinSet ? setPinInfoOpen(true) : setPinOpen(true))}
+          />
+        </div>
+
+        <div className="surface-flat overflow-hidden">
+          <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+            Notifications
+          </p>
+          <SettingsToggle
+            icon={Bell}
+            title="Push notifications"
+            subtitle="Alerts when the app is closed or in the background"
+            checked={profile?.pushNotificationsEnabled === true}
+            disabled={pushToggling}
+            onCheckedChange={(enabled) => void handlePushToggle(enabled)}
+          />
+          <SettingsToggle
+            icon={Volume2}
+            title="In-app alert sound"
+            subtitle="Sound for earning while the app is open"
+            checked={soundEnabled}
+            onCheckedChange={(enabled) => {
+              setNotificationSoundEnabled(enabled);
+              setSoundEnabled(enabled);
+            }}
           />
         </div>
 

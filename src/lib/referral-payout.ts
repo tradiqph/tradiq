@@ -4,6 +4,11 @@ import {
   calculateReferralCommissions,
 } from "@/lib/finance";
 import {
+  referralCommissionPushMessage,
+  resolveReferralPushName,
+} from "@/lib/push/copy";
+import { sendUserPush } from "@/lib/push/send-user-push";
+import {
   createEmptyReferralStats,
   normalizeReferralStats,
   type ReferralStats,
@@ -94,6 +99,16 @@ export async function applyReferralCommissions(
         createdAt: FieldValue.serverTimestamp(),
       });
     });
+
+    const fromName = resolveReferralPushName(
+      fromUserDisplayName,
+      fromUserEmail
+    );
+    await sendUserPush(
+      db,
+      referrerUid,
+      referralCommissionPushMessage(commission, fromName)
+    );
 
     const uplineSnap = await db.collection("users").doc(referrerUid).get();
     uplineUid = (uplineSnap.data()?.referredBy as string | undefined) ?? null;
