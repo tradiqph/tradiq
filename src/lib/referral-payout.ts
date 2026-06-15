@@ -50,7 +50,13 @@ export async function applyReferralCommissions(
   const userSnap = await db.collection("users").doc(subscriberUid).get();
   if (!userSnap.exists) return;
 
-  let uplineUid: string | null = userSnap.data()?.referredBy ?? null;
+  const subscriberData = userSnap.data() ?? {};
+  const fromUserDisplayName =
+    (subscriberData.displayName as string | undefined)?.trim() ?? "";
+  const fromUserEmail =
+    (subscriberData.email as string | undefined)?.trim() ?? "";
+
+  let uplineUid: string | null = subscriberData.referredBy ?? null;
   if (!uplineUid) return;
 
   const commissions = calculateReferralCommissions(amount);
@@ -81,6 +87,8 @@ export async function applyReferralCommissions(
         metadata: {
           level: level + 1,
           fromUserId: subscriberUid,
+          fromUserDisplayName: fromUserDisplayName || null,
+          fromUserEmail: fromUserEmail || null,
           investmentAmount: amount,
         },
         createdAt: FieldValue.serverTimestamp(),

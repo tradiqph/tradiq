@@ -5,7 +5,15 @@ import {
   dailyPayout,
   type BotInvestmentData,
 } from "@/lib/investments";
-import { createEmptyReferralStats } from "@/lib/referral-stats";
+import {
+  buildDownlineLevels,
+  parseUserRecords,
+  type NetworkUserRecord,
+} from "@/lib/console/member-network";
+import {
+  createEmptyReferralStats,
+  normalizeReferralStats,
+} from "@/lib/referral-stats";
 import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 
 function inferDaysAccruedFromBot(data: BotInvestmentData): number {
@@ -80,6 +88,61 @@ export async function syncReferralStats(db: Firestore): Promise<number> {
   }
 
   return updated;
+}
+
+/** Sync stored member counts for one user from the live referredBy tree. */
+export async function reconcileReferralMemberCounts(
+  db: Firestore,
+  userId: string,
+  users?: NetworkUserRecord[]
+): Promise<boolean> {
+  let userRecords = users;
+  if (!userRecords) {
+    const usersSnap = await db.collection("users").get();
+    userRecords = parseUserRecords(usersSnap.docs);
+  }
+
+  const downlineLevels = buildDownlineLevels(userId, userRecords);
+  const liveCounts = downlineLevels.map((level) => level.length);
+
+  const userSnap = await db.collection("users").doc(userId).get();
+  if (!userSnap.exists) return false;
+
+  const stats = normalizeReferralStats(userSnap.data()?.referralStats);
+  let changed = false;
+
+  for (let i = 0; i < REFERRAL_RATES.length; i++) {
+    const live = liveCounts[i] ?? 0;
+    if (stats.levels[i].members !== live) {
+      stats.levels[i].members = live;
+      changed = true;
+    }
+  }
+
+  if (!changed) return false;
+
+  await userSnap.ref.set({ referralStats: stats }, { merge: true });
+  return true;
+}
+
+export async function reconcileUplineReferralMemberCounts(
+  db: Firestore,
+  startUplineUid: string,
+  users?: NetworkUserRecord[]
+): Promise<void> {
+  let userRecords = users;
+  if (!userRecords) {
+    const usersSnap = await db.collection("users").get();
+    userRecords = parseUserRecords(usersSnap.docs);
+  }
+
+  const userById = new Map(userRecords.map((user) => [user.id, user]));
+  let uplineUid: string | null = startUplineUid;
+
+  for (let level = 0; level < REFERRAL_RATES.length && uplineUid; level++) {
+    await reconcileReferralMemberCounts(db, uplineUid, userRecords);
+    uplineUid = userById.get(uplineUid)?.referredBy ?? null;
+  }
 }
 
 export async function syncUserTotalEarnings(db: Firestore): Promise<number> {

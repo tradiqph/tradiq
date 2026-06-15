@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/api-auth";
+import { reconcileReferralMemberCounts } from "@/lib/admin-calculations";
 import {
   attachActiveBotCounts,
   buildDownlineLevels,
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
   const summaries = getLevelSummaries(levels);
 
   if (!levelParam) {
+    await reconcileReferralMemberCounts(db, rootUserId, users);
     return NextResponse.json({ levels: summaries });
   }
 

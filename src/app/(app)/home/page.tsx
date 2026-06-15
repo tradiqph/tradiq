@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { profile } = useAuth();
-  const { transactions, loading } = useTransactions(5);
+  const { transactions, loading, referralSourceNames } = useTransactions(5);
   const hasPendingDeposits = transactions.some(
     (tx) => tx.type === "deposit" && tx.status === "pending"
   );
@@ -39,7 +39,12 @@ export default function DashboardPage() {
         onWithdraw={() => setWithdrawOpen(true)}
       />
       <WalletCarousel profile={profile} />
-      {!loading && <RecentTransactions transactions={transactions} />}
+      {!loading && (
+        <RecentTransactions
+          transactions={transactions}
+          referralSourceNames={referralSourceNames}
+        />
+      )}
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} />
       <WithdrawModal
         open={withdrawOpen}

@@ -7,9 +7,13 @@ import { Transaction } from "@/types";
 
 interface RecentTransactionsProps {
   transactions: (Transaction & { id: string })[];
+  referralSourceNames?: Record<string, string>;
 }
 
-export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+export function RecentTransactions({
+  transactions,
+  referralSourceNames,
+}: RecentTransactionsProps) {
   return (
     <div className="px-4 pb-4">
       <SectionHeader
@@ -36,6 +40,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               key={tx.id}
               tx={tx}
               isLast={i === transactions.length - 1}
+              referralSourceNames={referralSourceNames}
             />
           ))}
         </div>

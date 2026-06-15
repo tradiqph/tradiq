@@ -7,6 +7,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { syncReferralStats } from "../lib/admin-calculations";
 import { trackReferralSignup } from "../lib/referral-payout";
 
 function loadServiceAccount() {
@@ -81,6 +82,8 @@ async function main() {
     }
   }
 
+  const synced = await syncReferralStats(db);
+  console.log(`Synced referral stats for ${synced} users`);
   console.log("Done");
 }
 

@@ -8,16 +8,21 @@ import {
   getTransactionAmountClassName,
   getTransactionAmountSign,
   getTransactionStatusBadge,
+  getTransactionSubtitle,
   getTransactionTypeLabel,
 } from "@/lib/transactions";
-import { format } from "date-fns";
 
 interface TransactionListItemProps {
   tx: Transaction & { id: string };
   isLast: boolean;
+  referralSourceNames?: Record<string, string>;
 }
 
-export function TransactionListItem({ tx, isLast }: TransactionListItemProps) {
+export function TransactionListItem({
+  tx,
+  isLast,
+  referralSourceNames,
+}: TransactionListItemProps) {
   const sign = getTransactionAmountSign(tx);
   const statusBadge = getTransactionStatusBadge(tx);
   const isInactive =
@@ -37,10 +42,7 @@ export function TransactionListItem({ tx, isLast }: TransactionListItemProps) {
             {tx.title ?? tx.type.replace("_", " ")}
           </p>
           <p className="truncate text-xs text-zinc-500">
-            {tx.subtitle ??
-              (tx.createdAt
-                ? format(tx.createdAt.toDate(), "MMM d, yyyy, h:mm a")
-                : "")}
+            {getTransactionSubtitle(tx, referralSourceNames)}
           </p>
         </div>
         <div className="text-right">

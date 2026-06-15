@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { verifyAuthToken } from "@/lib/api-auth";
+import { reconcileUplineReferralMemberCounts } from "@/lib/admin-calculations";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { trackReferralSignup } from "@/lib/referral-payout";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
@@ -96,9 +97,14 @@ export async function POST(request: NextRequest) {
     await trackReferralSignup(db, decoded.uid, { hadReferralCode });
 
     const finalSnap = await userRef.get();
+    const referredBy = (finalSnap.data()?.referredBy as string | undefined) ?? null;
+    if (referredBy) {
+      await reconcileUplineReferralMemberCounts(db, referredBy);
+    }
+
     return NextResponse.json({
       success: true,
-      referredBy: finalSnap.data()?.referredBy ?? null,
+      referredBy,
       tracked: Boolean(finalSnap.data()?.referralNetworkTracked),
     });
   } catch (e) {

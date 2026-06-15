@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Users, TrendingUp, Gift } from "lucide-react";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { StatTile } from "@/components/ui/stat-tile";
+import { useAuth } from "@/hooks/use-auth";
 import { formatPeso } from "@/lib/finance";
 import {
   getReferralLevelSummaries,
@@ -10,6 +12,12 @@ import {
   normalizeReferralStats,
 } from "@/lib/referral-stats";
 import { UserProfile } from "@/types";
+
+interface NetworkLevelSummary {
+  level: number;
+  label: string;
+  count: number;
+}
 
 interface ReferralLevelSummaryProps {
   profile: UserProfile;
@@ -20,23 +28,66 @@ export function ReferralLevelSummary({
   profile,
   onViewNetwork,
 }: ReferralLevelSummaryProps) {
+  const { user } = useAuth();
+  const [networkLevels, setNetworkLevels] = useState<
+    NetworkLevelSummary[] | null
+  >(null);
+
   const stats = normalizeReferralStats(profile.referralStats);
   const levels = getReferralLevelSummaries(stats);
   const totals = getReferralTotals(stats);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/referral/network", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+
+        const data = (await res.json()) as { levels?: NetworkLevelSummary[] };
+        if (!cancelled) {
+          setNetworkLevels(data.levels ?? []);
+        }
+      } catch {
+        // Fall back to stored stats when the network summary cannot load.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const memberCountByLevel = useMemo(
+    () => new Map((networkLevels ?? []).map((level) => [level.level, level.count])),
+    [networkLevels]
+  );
+
+  const directMembers =
+    memberCountByLevel.get(1) ?? totals.directMembers;
+  const totalMembers = networkLevels
+    ? networkLevels.reduce((sum, level) => sum + level.count, 0)
+    : totals.totalMembers;
 
   return (
     <div className="space-y-4">
       <div className="-mx-4 flex gap-3 px-4 pb-1">
         <StatTile
           label="Directs"
-          value={totals.directMembers}
+          value={directMembers}
           icon={Users}
           reserveHintSpace={Boolean(onViewNetwork)}
           className="min-w-0 flex-1 basis-0"
         />
         <StatTile
           label="Network"
-          value={totals.totalMembers}
+          value={totalMembers}
           icon={Users}
           onClick={onViewNetwork}
           hint={onViewNetwork ? "Tap to view" : undefined}
@@ -88,7 +139,9 @@ export function ReferralLevelSummary({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-black/40 px-2 py-1.5">
                   <p className="text-zinc-500">Members</p>
-                  <p className="font-semibold text-white">{level.members}</p>
+                  <p className="font-semibold text-white">
+                    {memberCountByLevel.get(level.level) ?? level.members}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-black/40 px-2 py-1.5">
                   <p className="text-zinc-500">Bot subs</p>
@@ -109,7 +162,7 @@ export function ReferralLevelSummary({
           <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
             <div>
               <p className="text-zinc-500">Members</p>
-              <p className="font-bold text-white">{totals.totalMembers}</p>
+              <p className="font-bold text-white">{totalMembers}</p>
             </div>
             <div>
               <p className="text-zinc-500">Bot subs</p>

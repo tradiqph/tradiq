@@ -22,7 +22,7 @@ const filters: { id: TransactionFilter; label: string }[] = [
 ];
 
 export default function HistoryPage() {
-  const { transactions, loading } = useTransactions(50);
+  const { transactions, loading, referralSourceNames } = useTransactions(50);
   const hasPendingDeposits = transactions.some(
     (tx) => tx.type === "deposit" && tx.status === "pending"
   );
@@ -88,6 +88,7 @@ export default function HistoryPage() {
                   key={tx.id}
                   tx={tx}
                   isLast={i === group.items.length - 1}
+                  referralSourceNames={referralSourceNames}
                 />
               ))}
             </div>

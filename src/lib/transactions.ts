@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { Transaction, TransactionStatus, TransactionType } from "@/types";
 import { formatPeso } from "@/lib/finance";
 
@@ -165,4 +166,89 @@ export function getTransactionTypeLabel(
   if (type === "withdrawal") return "WD";
   if (!type) return "TX";
   return type.slice(0, 2).toUpperCase();
+}
+
+export function formatTransactionDate(
+  tx: Pick<Transaction, "createdAt">
+): string {
+  if (!tx.createdAt) return "";
+  return format(tx.createdAt.toDate(), "MMM d, yyyy, h:mm a");
+}
+
+function getReferralSourceLabel(
+  tx: Pick<Transaction, "metadata">,
+  referralSourceNames?: Record<string, string>
+): string | null {
+  const fromUserId = tx.metadata?.fromUserId;
+  if (typeof fromUserId !== "string") return null;
+
+  const storedName = tx.metadata?.fromUserDisplayName;
+  if (typeof storedName === "string" && storedName.trim()) {
+    return storedName.trim();
+  }
+
+  const email = tx.metadata?.fromUserEmail;
+  if (typeof email === "string" && email.trim()) {
+    return email.trim();
+  }
+
+  const resolved = referralSourceNames?.[fromUserId];
+  if (resolved) return resolved;
+
+  return "Network member";
+}
+
+export function getTransactionSubtitle(
+  tx: Pick<
+    Transaction,
+    "type" | "title" | "subtitle" | "metadata" | "createdAt"
+  >,
+  referralSourceNames?: Record<string, string>
+): string {
+  const dateStr = formatTransactionDate(tx);
+  const type = resolveTransactionType(tx);
+
+  if (type === "referral") {
+    const source = getReferralSourceLabel(tx, referralSourceNames);
+    const level = tx.metadata?.level;
+    const parts: string[] = [];
+
+    if (source) {
+      const levelSuffix =
+        typeof level === "number" ? ` · L${level}` : "";
+      parts.push(`From ${source}${levelSuffix}`);
+    }
+    if (dateStr) parts.push(dateStr);
+    return parts.join(" · ");
+  }
+
+  if (tx.subtitle && dateStr) return `${tx.subtitle} · ${dateStr}`;
+  if (tx.subtitle) return tx.subtitle;
+  return dateStr;
+}
+
+export function getMissingReferralSourceIds(
+  transactions: Pick<Transaction, "type" | "title" | "metadata">[],
+  resolvedIds: Set<string>
+): string[] {
+  const ids = new Set<string>();
+
+  for (const tx of transactions) {
+    if (resolveTransactionType(tx) !== "referral") continue;
+
+    const fromUserId = tx.metadata?.fromUserId;
+    if (typeof fromUserId !== "string" || resolvedIds.has(fromUserId)) {
+      continue;
+    }
+
+    const storedName = tx.metadata?.fromUserDisplayName;
+    if (typeof storedName === "string" && storedName.trim()) continue;
+
+    const email = tx.metadata?.fromUserEmail;
+    if (typeof email === "string" && email.trim()) continue;
+
+    ids.add(fromUserId);
+  }
+
+  return [...ids];
 }
