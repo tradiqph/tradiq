@@ -7,8 +7,10 @@ import { formatPeso } from "@/lib/finance";
 import {
   getNotificationKindIcon,
   getNotificationKindIconStyle,
+  getNotificationSlideInStyle,
 } from "@/lib/notification-icons";
 import type { AppNotification, AppNotificationKind } from "@/lib/notifications";
+import { markNotificationSeen } from "@/lib/notification-read-state";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 
@@ -52,7 +54,12 @@ function ForegroundEarningAlert({
         onClick={() => setDetailOpen(true)}
         className="pointer-events-auto mx-4 w-[calc(100%-2rem)] max-w-md cursor-pointer text-left"
       >
-        <div className="rounded-xl border border-violet-500/50 bg-zinc-950/95 p-3 shadow-lg shadow-violet-500/10 backdrop-blur-md">
+        <div
+          className={cn(
+            "rounded-xl border bg-zinc-950/95 p-3 backdrop-blur-md",
+            getNotificationSlideInStyle(alert.kind)
+          )}
+        >
           <div className="flex gap-3">
             <div
               className={cn(
@@ -86,6 +93,7 @@ function ForegroundEarningAlert({
           setDetailOpen(open);
           if (!open) onDismiss();
         }}
+        onView={() => markNotificationSeen(alert.id)}
       />
     </>
   );

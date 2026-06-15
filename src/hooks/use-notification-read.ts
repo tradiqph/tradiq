@@ -1,53 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppNotification } from "@/lib/notifications";
-
-const READ_KEY = "tradiq_notifications_read_at";
-const SEEN_IDS_KEY = "tradiq_notifications_seen_ids";
-
-function readSeenIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(SEEN_IDS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((id) => typeof id === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistSeenIds(ids: string[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(READ_KEY, String(Date.now()));
-  localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(ids));
-}
+import {
+  markNotificationSeen,
+  NOTIFICATION_SEEN_EVENT,
+  readSeenNotificationIds,
+} from "@/lib/notification-read-state";
 
 export function useNotificationReadState(
   notifications: AppNotification[],
   sheetOpen: boolean,
   onSheetOpen?: () => void
 ) {
-  const [seenIds, setSeenIds] = useState<string[]>(readSeenIds);
+  const [seenIds, setSeenIds] = useState<string[]>(readSeenNotificationIds);
+  const wasSheetOpenRef = useRef(false);
+  const notificationIdsKey = notifications.map((item) => item.id).join("|");
 
-  const markSeen = useCallback((ids: string | string[]) => {
-    const nextIds = Array.isArray(ids) ? ids : [ids];
-    if (nextIds.length === 0) return;
-
-    setSeenIds((current) => {
-      const merged = [...new Set([...current, ...nextIds])];
-      persistSeenIds(merged);
-      return merged;
-    });
+  const refreshSeenIds = useCallback(() => {
+    setSeenIds(readSeenNotificationIds());
   }, []);
 
+  const markSeen = useCallback((ids: string | string[]) => {
+    markNotificationSeen(ids);
+    refreshSeenIds();
+  }, [refreshSeenIds]);
+
   useEffect(() => {
+    const handleSeen = () => refreshSeenIds();
+    window.addEventListener(NOTIFICATION_SEEN_EVENT, handleSeen);
+    return () => window.removeEventListener(NOTIFICATION_SEEN_EVENT, handleSeen);
+  }, [refreshSeenIds]);
+
+  useEffect(() => {
+    const justOpened = sheetOpen && !wasSheetOpenRef.current;
+    wasSheetOpenRef.current = sheetOpen;
+
     if (!sheetOpen) return;
-    onSheetOpen?.();
-  }, [sheetOpen, onSheetOpen]);
+
+    if (justOpened) {
+      onSheetOpen?.();
+    }
+
+    if (notificationIdsKey.length > 0) {
+      markNotificationSeen(notificationIdsKey.split("|"));
+      refreshSeenIds();
+    }
+  }, [sheetOpen, notificationIdsKey, onSheetOpen, refreshSeenIds]);
 
   const seen = new Set(seenIds);
   const hasUnread =

@@ -44,3 +44,35 @@ export function getNotificationKindIcon(kind: AppNotificationKind): LucideIcon {
 export function getNotificationKindIconStyle(kind: AppNotificationKind): string {
   return notificationKindIconStyle[kind];
 }
+
+const EARNING_DETAIL_KINDS = new Set<AppNotificationKind>([
+  "daily_earning",
+  "final_earning",
+  "principal_return",
+  "referral_commission",
+]);
+
+export function getNotificationDetailModalStyle(kind: AppNotificationKind): {
+  border: string;
+  closeButton: string;
+} {
+  if (EARNING_DETAIL_KINDS.has(kind)) {
+    return {
+      border: "border-amber-500/30",
+      closeButton: "bg-amber-600 hover:bg-amber-500",
+    };
+  }
+
+  return {
+    border: "border-violet-500/30",
+    closeButton: "bg-violet-600 hover:bg-violet-500",
+  };
+}
+
+export function getNotificationSlideInStyle(kind: AppNotificationKind): string {
+  if (EARNING_DETAIL_KINDS.has(kind)) {
+    return "border-amber-500/50 shadow-lg shadow-amber-500/10";
+  }
+
+  return "border-violet-500/50 shadow-lg shadow-violet-500/10";
+}

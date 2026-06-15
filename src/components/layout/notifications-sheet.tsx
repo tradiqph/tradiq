@@ -37,7 +37,6 @@ export function NotificationsSheet({
   const handleSelect = (item: AppNotification) => {
     setSelected(item);
     setDetailOpen(true);
-    onMarkSeen(item.id);
   };
 
   const handleDetailOpenChange = (nextOpen: boolean) => {
@@ -118,6 +117,7 @@ export function NotificationsSheet({
         notification={selected}
         open={detailOpen}
         onOpenChange={handleDetailOpenChange}
+        onView={(item) => onMarkSeen(item.id)}
       />
     </>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatPeso } from "@/lib/finance";
 import {
+  getNotificationDetailModalStyle,
   getNotificationKindIcon,
   getNotificationKindIconStyle,
 } from "@/lib/notification-icons";
@@ -20,23 +22,45 @@ interface NotificationDetailDialogProps {
   notification: AppNotification | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onView?: (notification: AppNotification) => void;
 }
 
 export function NotificationDetailDialog({
   notification,
   open,
   onOpenChange,
+  onView,
 }: NotificationDetailDialogProps) {
+  const viewedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !notification) return;
+    if (viewedRef.current === notification.id) return;
+
+    viewedRef.current = notification.id;
+    onView?.(notification);
+  }, [open, notification, onView]);
+
+  useEffect(() => {
+    if (!open) {
+      viewedRef.current = null;
+    }
+  }, [open]);
+
   if (!notification) return null;
 
   const Icon = getNotificationKindIcon(notification.kind);
   const fullDate = formatNotificationFullDate(notification.createdAt ?? null);
+  const modalStyle = getNotificationDetailModalStyle(notification.kind);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="border border-violet-500/30 bg-zinc-950 text-white sm:max-w-sm"
+        className={cn(
+          "border bg-zinc-950 text-white sm:max-w-sm",
+          modalStyle.border
+        )}
       >
         <div className="flex flex-col items-center pt-2 text-center">
           <div
@@ -73,7 +97,10 @@ export function NotificationDetailDialog({
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="mt-2 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 cursor-pointer"
+          className={cn(
+            "mt-2 w-full rounded-xl py-3 text-sm font-semibold text-white transition-colors cursor-pointer",
+            modalStyle.closeButton
+          )}
         >
           Close
         </button>
