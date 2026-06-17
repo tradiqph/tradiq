@@ -65,6 +65,31 @@ export function sortUserDocsByEmail(
   );
 }
 
+export type MemberSort = "email" | "newest";
+
+export function sortUserDocs(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[],
+  sort: MemberSort
+) {
+  if (sort === "newest") {
+    return sortUserDocsByMemberSince(docs, "desc");
+  }
+  return sortUserDocsByEmail(docs);
+}
+
+export function sortUserDocsByMemberSince(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[],
+  direction: "desc" | "asc" = "desc"
+) {
+  return [...docs].sort((a, b) => {
+    const aTime = a.data().memberSince?.toDate?.()?.getTime() ?? 0;
+    const bTime = b.data().memberSince?.toDate?.()?.getTime() ?? 0;
+    const diff = direction === "desc" ? bTime - aTime : aTime - bTime;
+    if (diff !== 0) return diff;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export async function getMembersSummary(
   db: Firestore,
   search: string,

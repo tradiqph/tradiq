@@ -47,10 +47,18 @@ interface MembersFinancialSummary {
 
 const PAGE_SIZE = 20;
 
+type MemberSort = "email" | "newest";
+
+const SORT_OPTIONS: { value: MemberSort; label: string }[] = [
+  { value: "email", label: "Email (A–Z)" },
+  { value: "newest", label: "Newest registered" },
+];
+
 export default function ConsoleMembersPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<MemberSort>("email");
   const [members, setMembers] = useState<Member[]>([]);
   const [summary, setSummary] = useState<MembersResponse["summary"] | null>(
     null
@@ -77,6 +85,7 @@ export default function ConsoleMembersPage() {
         const params = new URLSearchParams({
           search: query,
           limit: String(PAGE_SIZE),
+          sort,
         });
         if (cursor) params.set("cursor", cursor);
 
@@ -97,7 +106,7 @@ export default function ConsoleMembersPage() {
         setLoading(false);
       }
     },
-    [user, query]
+    [user, query, sort]
   );
 
   useEffect(() => {
@@ -176,6 +185,18 @@ export default function ConsoleMembersPage() {
             className="w-full rounded-lg border border-white/10 bg-zinc-900 py-2 pr-3 pl-9 text-sm text-white placeholder:text-zinc-600"
           />
         </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as MemberSort)}
+          className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"
+          aria-label="Sort members"
+        >
+          {SORT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <button
           type="submit"
           className="cursor-pointer rounded-lg bg-amber-500/20 px-4 py-2 text-sm text-amber-400"

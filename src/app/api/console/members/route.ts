@@ -4,7 +4,8 @@ import {
   mapMemberDoc,
   memberMatchesSearch,
   MEMBERS_PAGE_SIZE,
-  sortUserDocsByEmail,
+  sortUserDocs,
+  type MemberSort,
 } from "@/lib/console/members";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
   const search = (request.nextUrl.searchParams.get("search") ?? "")
     .trim()
     .toLowerCase();
+  const sortParam = request.nextUrl.searchParams.get("sort") ?? "email";
+  const sort: MemberSort = sortParam === "newest" ? "newest" : "email";
   const limit = Math.min(
     parseInt(
       request.nextUrl.searchParams.get("limit") ?? String(MEMBERS_PAGE_SIZE),
@@ -31,18 +34,19 @@ export async function GET(request: NextRequest) {
 
   let pageDocs: FirebaseFirestore.QueryDocumentSnapshot[];
 
-  if (search) {
-    const filtered = sortUserDocsByEmail(
-      allSnap.docs.filter((doc) => memberMatchesSearch(doc.data(), search))
-    );
+  if (search || sort === "newest") {
+    const filtered = search
+      ? allSnap.docs.filter((doc) => memberMatchesSearch(doc.data(), search))
+      : allSnap.docs;
+    const sorted = sortUserDocs(filtered, sort);
 
     let startIndex = 0;
     if (cursor) {
-      const cursorIndex = filtered.findIndex((doc) => doc.id === cursor);
+      const cursorIndex = sorted.findIndex((doc) => doc.id === cursor);
       startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
     }
 
-    const slice = filtered.slice(startIndex, startIndex + limit + 1);
+    const slice = sorted.slice(startIndex, startIndex + limit + 1);
     const hasMore = slice.length > limit;
     pageDocs = slice.slice(0, limit);
     const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest) {
       hasMore,
       summary,
       pageSize: limit,
+      sort,
     });
   }
 
@@ -83,5 +88,6 @@ export async function GET(request: NextRequest) {
     hasMore,
     summary,
     pageSize: limit,
+    sort,
   });
 }
