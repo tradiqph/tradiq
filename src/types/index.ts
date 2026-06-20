@@ -28,6 +28,7 @@ export interface UserProfile {
 
 export type TransactionType =
   | "deposit"
+  | "deposit_bonus"
   | "bot_subscribe"
   | "earning"
   | "referral"

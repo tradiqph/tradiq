@@ -30,6 +30,7 @@ function resolveTransactionType(
   if (raw === "earnings") return "earning";
   if (
     raw === "deposit" ||
+    raw === "deposit_bonus" ||
     raw === "bot_subscribe" ||
     raw === "earning" ||
     raw === "referral" ||
@@ -66,6 +67,7 @@ export function getTransactionAmountSign(
 
   switch (type) {
     case "deposit":
+    case "deposit_bonus":
       return status === "paid" ? "+" : null;
     case "earning":
     case "referral":
@@ -120,6 +122,7 @@ export function getTransactionStatusBadge(
 
   switch (type) {
     case "deposit":
+    case "deposit_bonus":
       if (status === "paid") {
         return { variant: "default", label: "Added to wallet" };
       }
@@ -149,7 +152,9 @@ export function filterTransactions<
   T extends { type: string },
 >(transactions: T[], filter: TransactionFilter): T[] {
   if (filter === "deposits") {
-    return transactions.filter((tx) => tx.type === "deposit");
+    return transactions.filter(
+      (tx) => tx.type === "deposit" || tx.type === "deposit_bonus"
+    );
   }
   if (filter === "withdrawals") {
     return transactions.filter((tx) => tx.type === "withdrawal");
@@ -163,6 +168,7 @@ export function getTransactionTypeLabel(
   const type =
     typeof tx === "string" ? tx : resolveTransactionType(tx) ?? tx.type ?? "";
   if (type === "deposit") return "QR";
+  if (type === "deposit_bonus") return "DB";
   if (type === "withdrawal") return "WD";
   if (!type) return "TX";
   return type.slice(0, 2).toUpperCase();

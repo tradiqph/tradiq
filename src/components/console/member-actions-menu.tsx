@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { Banknote, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import {
   DropdownMenu,
@@ -39,11 +39,14 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [pinOpen, setPinOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [bonusOpen, setBonusOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositNote, setDepositNote] = useState("");
+  const [bonusAmount, setBonusAmount] = useState("");
+  const [bonusNote, setBonusNote] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -153,6 +156,44 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
     }
   };
 
+  const handleCreditBonus = async () => {
+    const amount = Number(bonusAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!user) return;
+    setLoading(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `/api/console/members/${member.id}/deposit-bonus`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount,
+            note: bonusNote.trim() || undefined,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Bonus credit failed");
+      toast.success(`Deposit bonus credited to ${member.displayName}`);
+      setBonusOpen(false);
+      setBonusAmount("");
+      setBonusNote("");
+      onUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (confirmEmail.trim().toLowerCase() !== member.email.toLowerCase()) {
       toast.error("Email confirmation does not match");
@@ -197,13 +238,22 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             Network
           </DropdownMenuItem>
           {canCreditDeposit && (
-            <DropdownMenuItem
-              className="cursor-pointer text-amber-400"
-              onClick={() => setDepositOpen(true)}
-            >
-              <Banknote className="mr-2 h-4 w-4" />
-              Credit deposit
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem
+                className="cursor-pointer text-amber-400"
+                onClick={() => setDepositOpen(true)}
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Credit deposit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer text-amber-400"
+                onClick={() => setBonusOpen(true)}
+              >
+                <Gift className="mr-2 h-4 w-4" />
+                Credit bonus
+              </DropdownMenuItem>
+            </>
           )}
           {!isProtected && (
             <>
@@ -278,6 +328,50 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             onClick={() => void handleCreditDeposit()}
           >
             {loading ? "Crediting…" : "Credit to wallet"}
+          </GoldButton>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bonusOpen} onOpenChange={setBonusOpen}>
+        <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">
+          <DialogHeader>
+            <DialogTitle>Credit bonus</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Extra direct-deposit bonus for{" "}
+            <span className="text-white">{member.displayName}</span> (
+            {member.email}). Credits their wallet as a deposit bonus — separate
+            from the main deposit amount.
+          </p>
+          <div className="space-y-2">
+            <Label className="text-zinc-400">Amount (PHP)</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={bonusAmount}
+              onChange={(e) => setBonusAmount(e.target.value)}
+              placeholder="0.00"
+              className="border-white/10 bg-black text-white"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-zinc-400">Note (optional, admin only)</Label>
+            <Input
+              value={bonusNote}
+              onChange={(e) => setBonusNote(e.target.value)}
+              placeholder="e.g. 2% bonus on ₱50,000 direct deposit"
+              className="border-white/10 bg-black text-white"
+              maxLength={500}
+            />
+          </div>
+          <GoldButton
+            className="w-full"
+            disabled={loading}
+            onClick={() => void handleCreditBonus()}
+          >
+            {loading ? "Crediting…" : "Credit bonus to wallet"}
           </GoldButton>
         </DialogContent>
       </Dialog>
