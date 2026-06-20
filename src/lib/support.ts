@@ -31,6 +31,8 @@ export interface SupportTicketReply {
   authorRole: "user" | "admin";
   authorEmail?: string;
   body: string;
+  attachmentPaths?: string[];
+  attachmentUrls?: string[];
   createdAt: { seconds: number } | null;
 }
 
@@ -96,8 +98,13 @@ export const adminReplySchema = z.object({
   ticketId: z.string().min(1).max(128),
   message: z
     .string()
-    .min(1)
-    .max(SUPPORT_MAX_MESSAGE_LENGTH),
+    .max(SUPPORT_MAX_MESSAGE_LENGTH)
+    .optional()
+    .default(""),
+  attachmentPaths: z
+    .array(z.string().max(256))
+    .max(SUPPORT_MAX_ATTACHMENTS)
+    .optional(),
 });
 
 export const adminResolveSchema = z.object({

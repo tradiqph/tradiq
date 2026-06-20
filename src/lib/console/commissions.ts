@@ -3,6 +3,10 @@ import { buildSubscriptionCommissionBreakdown } from "@/lib/console/commission-b
 import { enrichBotInvestment } from "@/lib/investments";
 import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 import {
+  CONSOLE_LIST_PAGE_SIZE,
+  paginateByCursor,
+} from "@/lib/console/pagination";
+import {
   getReferralTotals,
   normalizeReferralStats,
 } from "@/lib/referral-stats";
@@ -59,8 +63,10 @@ async function loadUsersWithUplineChains(
 
 export async function fetchSubscriptionCommissions(
   db: Firestore,
-  status: "active" | "completed" | "all" = "all"
+  status: "active" | "completed" | "all" = "all",
+  options: { limit?: number; cursor?: string | null } = {}
 ) {
+  const { limit = CONSOLE_LIST_PAGE_SIZE, cursor = null } = options;
   const botRefs =
     status === "all"
       ? await fetchAllUserBots(db, undefined, true)
@@ -119,10 +125,21 @@ export async function fetchSubscriptionCommissions(
     ) / 100,
   };
 
+  const sorted = rows.sort((a, b) =>
+    (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? "")
+  );
+  const { page, total, hasMore, nextCursor } = paginateByCursor(
+    sorted,
+    cursor,
+    limit
+  );
+
   return {
-    commissions: rows.sort((a, b) =>
-      (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? "")
-    ),
+    commissions: page,
     summary,
+    total,
+    pageSize: limit,
+    hasMore,
+    nextCursor,
   };
 }

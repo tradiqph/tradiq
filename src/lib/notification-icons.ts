@@ -52,11 +52,17 @@ const EARNING_DETAIL_KINDS = new Set<AppNotificationKind>([
   "referral_commission",
 ]);
 
+const AMBER_DETAIL_KINDS = new Set<AppNotificationKind>([
+  ...EARNING_DETAIL_KINDS,
+  "support",
+  "security",
+]);
+
 export function getNotificationDetailModalStyle(kind: AppNotificationKind): {
   border: string;
   closeButton: string;
 } {
-  if (EARNING_DETAIL_KINDS.has(kind)) {
+  if (AMBER_DETAIL_KINDS.has(kind)) {
     return {
       border: "border-amber-500/30",
       closeButton: "bg-amber-600 hover:bg-amber-500",

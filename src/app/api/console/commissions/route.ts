@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseConsoleListLimit } from "@/lib/console/pagination";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 import { fetchSubscriptionCommissions } from "@/lib/console/commissions";
 
@@ -13,9 +14,14 @@ export async function GET(request: NextRequest) {
       | "active"
       | "completed"
       | "all") ?? "all";
+  const limit = parseConsoleListLimit(request.nextUrl.searchParams.get("limit"));
+  const cursor = request.nextUrl.searchParams.get("cursor");
 
   try {
-    const result = await fetchSubscriptionCommissions(auth.db, status);
+    const result = await fetchSubscriptionCommissions(auth.db, status, {
+      limit,
+      cursor,
+    });
     return NextResponse.json(result);
   } catch (e) {
     const message =

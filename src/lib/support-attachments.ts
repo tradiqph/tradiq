@@ -91,9 +91,28 @@ export function buildAttachmentStoragePath(
   return `support-tickets/${userId}/${randomUUID()}.${safeExt}`;
 }
 
+export function buildAdminReplyStoragePath(
+  adminUid: string,
+  extension: string
+): string {
+  const safeExt = extension.replace(/[^a-z]/gi, "").slice(0, 4) || "bin";
+  return `support-replies/${adminUid}/${randomUUID()}.${safeExt}`;
+}
+
 /** Only paths uploaded by this user under support-tickets/{uid}/ */
 export function isOwnedAttachmentPath(path: string, userId: string): boolean {
   const prefix = `support-tickets/${userId}/`;
+  if (!path.startsWith(prefix)) return false;
+  const rest = path.slice(prefix.length);
+  return /^[a-f0-9-]{36}\.(jpg|png|webp)$/i.test(rest);
+}
+
+/** Only paths uploaded by this admin under support-replies/{uid}/ */
+export function isOwnedAdminReplyAttachmentPath(
+  path: string,
+  adminUid: string
+): boolean {
+  const prefix = `support-replies/${adminUid}/`;
   if (!path.startsWith(prefix)) return false;
   const rest = path.slice(prefix.length);
   return /^[a-f0-9-]{36}\.(jpg|png|webp)$/i.test(rest);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell } from "lucide-react";
 import { NotificationsSheet } from "@/components/layout/notifications-sheet";
@@ -36,9 +36,19 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { profile } = useAuth();
   const { transactions, referralSourceNames } = useTransactions(25);
-  const { count: supportUnreadCount, items: supportNotificationItems, markRead: markSupportRead } =
-    useSupportUnread();
+  const {
+    count: supportUnreadCount,
+    items: supportNotificationItems,
+    markRead: markSupportRead,
+    refetch: refetchSupportNotifications,
+  } = useSupportUnread();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    if (notificationsOpen) {
+      void refetchSupportNotifications();
+    }
+  }, [notificationsOpen, refetchSupportNotifications]);
 
   const rawNotifications = useMemo(() => {
     const supportNotifications = buildSupportNotifications(
@@ -55,14 +65,19 @@ export function AppHeader({
     ]);
   }, [profile, transactions, supportNotificationItems, referralSourceNames]);
 
-  const handleNotificationsOpen = useCallback(() => {
-    void markSupportRead();
-  }, [markSupportRead]);
-
   const { hasUnread, markSeen, notifications } = useNotificationReadState(
     rawNotifications,
-    notificationsOpen,
-    handleNotificationsOpen
+    notificationsOpen
+  );
+
+  const handleMarkSeen = useCallback(
+    (id: string) => {
+      markSeen(id);
+      if (id.startsWith("support-")) {
+        void markSupportRead([id.slice("support-".length)]);
+      }
+    },
+    [markSeen, markSupportRead]
   );
 
   if (title) {
@@ -127,7 +142,7 @@ export function AppHeader({
         open={notificationsOpen}
         onOpenChange={setNotificationsOpen}
         notifications={notifications}
-        onMarkSeen={(id) => markSeen(id)}
+        onMarkSeen={handleMarkSeen}
       />
     </>
   );

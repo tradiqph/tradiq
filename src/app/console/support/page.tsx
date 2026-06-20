@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Calendar } from "lucide-react";
+import { Calendar, ImagePlus, Loader2, X } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
 import { ConsoleLoader } from "@/components/console/console-loader";
 import { GoldButton } from "@/components/ui/gold-button";
@@ -14,6 +14,11 @@ import {
 } from "@/contexts/console-badges";
 import { useAuth } from "@/hooks/use-auth";
 import { manilaTodayKey } from "@/lib/manila-time";
+import {
+  SUPPORT_ALLOWED_IMAGE_TYPES,
+  SUPPORT_MAX_ATTACHMENTS,
+  SUPPORT_MAX_ATTACHMENT_BYTES,
+} from "@/lib/support";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { SupportTicket } from "@/lib/support";
@@ -45,6 +50,9 @@ export default function ConsoleSupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [reply, setReply] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -132,10 +140,71 @@ export default function ConsoleSupportPage() {
     void fetchTickets(cursor, newPage);
   };
 
+  const resetReplyComposer = () => {
+    setReply("");
+    setPendingFiles([]);
+    setUploadedPaths([]);
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const total = pendingFiles.length + uploadedPaths.length + files.length;
+    if (total > SUPPORT_MAX_ATTACHMENTS) {
+      toast.error(`Maximum ${SUPPORT_MAX_ATTACHMENTS} images`);
+      return;
+    }
+    for (const f of files) {
+      if (!SUPPORT_ALLOWED_IMAGE_TYPES.includes(f.type as never)) {
+        toast.error("Only JPEG, PNG, or WebP images allowed");
+        return;
+      }
+      if (f.size > SUPPORT_MAX_ATTACHMENT_BYTES) {
+        toast.error("Each image must be 4 MB or less");
+        return;
+      }
+    }
+    setPendingFiles((prev) =>
+      [...prev, ...files].slice(0, SUPPORT_MAX_ATTACHMENTS - uploadedPaths.length)
+    );
+  };
+
+  const uploadFiles = async (): Promise<string[]> => {
+    if (!user || pendingFiles.length === 0) return uploadedPaths;
+    setUploading(true);
+    const paths = [...uploadedPaths];
+    try {
+      const token = await user.getIdToken();
+      for (const file of pendingFiles) {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/console/support/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Upload failed");
+        paths.push(data.path);
+      }
+      setUploadedPaths(paths);
+      setPendingFiles([]);
+      return paths;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const sendReply = async () => {
-    if (!user || !selected || !reply.trim()) return;
+    if (!user || !selected) return;
+    const message = reply.trim();
+    if (!message && pendingFiles.length === 0 && uploadedPaths.length === 0) {
+      return;
+    }
+
     setActing(true);
     try {
+      const attachmentPaths = await uploadFiles();
       const token = await user.getIdToken();
       const res = await fetch("/api/console/support", {
         method: "PATCH",
@@ -146,13 +215,14 @@ export default function ConsoleSupportPage() {
         body: JSON.stringify({
           action: "reply",
           ticketId: selected.id,
-          message: reply.trim(),
+          message,
+          attachmentPaths,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Reply failed");
       setSelected(data.ticket);
-      setReply("");
+      resetReplyComposer();
       toast.success("Reply sent");
       void fetchTickets(cursors[page - 1] ?? null, page);
     } catch (e) {
@@ -285,7 +355,10 @@ export default function ConsoleSupportPage() {
                 <li key={t.id}>
                   <button
                     type="button"
-                    onClick={() => void loadDetail(t.id)}
+                    onClick={() => {
+                      resetReplyComposer();
+                      void loadDetail(t.id);
+                    }}
                     className={cn(
                       "w-full px-4 py-3 text-left hover:bg-white/[0.02]",
                       selected?.id === t.id && "bg-amber-500/5"
@@ -383,6 +456,14 @@ export default function ConsoleSupportPage() {
                       <SupportMessageText className="text-zinc-300">
                         {r.body}
                       </SupportMessageText>
+                      {r.attachmentUrls && r.attachmentUrls.length > 0 && (
+                        <div className="mt-2">
+                          <SupportAttachmentGallery
+                            urls={r.attachmentUrls}
+                            thumbnailClassName="h-14 w-14"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -393,18 +474,86 @@ export default function ConsoleSupportPage() {
                   <textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    rows={3}
+                    rows={10}
                     maxLength={2000}
                     placeholder="Type your reply…"
-                    className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white"
+                    className="min-h-[240px] w-full resize-y rounded-lg border border-white/10 bg-black px-3 py-2 text-sm leading-relaxed text-white"
                   />
+                  <div>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-400">
+                      <ImagePlus className="h-4 w-4 shrink-0" />
+                      Attach image
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={handleFilePick}
+                        disabled={
+                          acting ||
+                          uploading ||
+                          pendingFiles.length + uploadedPaths.length >=
+                            SUPPORT_MAX_ATTACHMENTS
+                        }
+                      />
+                    </label>
+                    {(pendingFiles.length > 0 || uploadedPaths.length > 0) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {pendingFiles.map((f, i) => (
+                          <div
+                            key={`${f.name}-${i}`}
+                            className="flex items-center gap-1 rounded-lg bg-black/60 px-2 py-1 text-xs text-zinc-400"
+                          >
+                            {f.name.slice(0, 24)}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPendingFiles((p) => p.filter((_, j) => j !== i))
+                              }
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {uploadedPaths.map((path) => (
+                          <div
+                            key={path}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400"
+                          >
+                            Attached
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setUploadedPaths((p) => p.filter((item) => item !== path))
+                              }
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <GoldButton
                       className="flex-1"
-                      disabled={acting || !reply.trim()}
+                      disabled={
+                        acting ||
+                        uploading ||
+                        (!reply.trim() &&
+                          pendingFiles.length === 0 &&
+                          uploadedPaths.length === 0)
+                      }
                       onClick={() => void sendReply()}
                     >
-                      Send reply
+                      {acting || uploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {uploading ? "Uploading…" : "Sending…"}
+                        </>
+                      ) : (
+                        "Send reply"
+                      )}
                     </GoldButton>
                     <button
                       type="button"

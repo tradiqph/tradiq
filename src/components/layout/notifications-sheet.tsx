@@ -44,6 +44,12 @@ export function NotificationsSheet({
     if (!nextOpen) setSelected(null);
   };
 
+  const handleNavigate = () => {
+    setDetailOpen(false);
+    setSelected(null);
+    onOpenChange(false);
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -118,6 +124,7 @@ export function NotificationsSheet({
         open={detailOpen}
         onOpenChange={handleDetailOpenChange}
         onView={(item) => onMarkSeen(item.id)}
+        onNavigate={handleNavigate}
       />
     </>
   );

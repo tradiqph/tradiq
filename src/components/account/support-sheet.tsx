@@ -384,6 +384,14 @@ export function SupportSheet({ open, onOpenChange }: SupportSheetProps) {
                                 <SupportMessageText className="mt-0.5 text-zinc-400">
                                   {r.body}
                                 </SupportMessageText>
+                                {r.attachmentUrls && r.attachmentUrls.length > 0 && (
+                                  <div className="mt-2">
+                                    <SupportAttachmentGallery
+                                      urls={r.attachmentUrls}
+                                      thumbnailClassName="h-14 w-14"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccrualStatus } from "@/lib/console/accrual-status";
+import { parseConsoleListLimit } from "@/lib/console/pagination";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 import { fetchAllInvestments } from "@/lib/console/aggregate-stats";
 import {
@@ -23,10 +24,12 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("payoutDay")
   );
   const payoutDay = payoutDayParam ?? (dueToday ? manilaTodayKey() : undefined);
+  const limit = parseConsoleListLimit(request.nextUrl.searchParams.get("limit"));
+  const cursor = request.nextUrl.searchParams.get("cursor");
 
   try {
     const [result, accrualStatus] = await Promise.all([
-      fetchAllInvestments(auth.db, status, { payoutDay }),
+      fetchAllInvestments(auth.db, status, { payoutDay, limit, cursor }),
       getAccrualStatus(auth.db),
     ]);
     return NextResponse.json({ ...result, accrualStatus });

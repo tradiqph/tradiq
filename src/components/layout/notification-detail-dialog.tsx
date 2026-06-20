@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ interface NotificationDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onView?: (notification: AppNotification) => void;
+  onNavigate?: () => void;
 }
 
 export function NotificationDetailDialog({
@@ -30,6 +32,7 @@ export function NotificationDetailDialog({
   open,
   onOpenChange,
   onView,
+  onNavigate,
 }: NotificationDetailDialogProps) {
   const viewedRef = useRef<string | null>(null);
 
@@ -94,16 +97,38 @@ export function NotificationDetailDialog({
           {notification.body}
         </p>
 
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className={cn(
-            "mt-2 w-full rounded-xl py-3 text-sm font-semibold text-white transition-colors cursor-pointer",
-            modalStyle.closeButton
-          )}
-        >
-          Close
-        </button>
+        {notification.kind === "support" && notification.href ? (
+          <div className="mt-2 flex flex-col gap-2">
+            <Link
+              href={notification.href}
+              onClick={() => onNavigate?.()}
+              className={cn(
+                "w-full rounded-xl py-3 text-center text-sm font-semibold text-white transition-colors",
+                modalStyle.closeButton
+              )}
+            >
+              Go to Support
+            </Link>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="w-full rounded-xl py-3 text-sm font-medium text-zinc-400 transition-colors hover:text-white cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className={cn(
+              "mt-2 w-full rounded-xl py-3 text-sm font-semibold text-white transition-colors cursor-pointer",
+              modalStyle.closeButton
+            )}
+          >
+            Close
+          </button>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -34,30 +34,48 @@ export function useSupportUnread() {
     }
   }, [user]);
 
-  const markRead = useCallback(async () => {
-    if (!user) return;
+  const markRead = useCallback(
+    async (ticketIds?: string[]) => {
+      if (!user) return;
 
-    try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/support/tickets/read", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/support/tickets/read", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            ticketIds?.length ? { ticketIds } : {}
+          ),
+        });
+        if (!res.ok) return;
 
-      setCount(0);
-      setItems((current) =>
-        current.map((item) => ({ ...item, isUnread: false }))
-      );
-      void refetch();
-    } catch {
-      // Keep badge until a successful read
-    }
-  }, [user, refetch]);
+        if (ticketIds?.length) {
+          setItems((current) => {
+            const next = current.map((item) =>
+              ticketIds.includes(item.ticketId)
+                ? { ...item, isUnread: false }
+                : item
+            );
+            setCount(next.filter((item) => item.isUnread).length);
+            return next;
+          });
+        } else {
+          setCount(0);
+          setItems((current) =>
+            current.map((item) => ({ ...item, isUnread: false }))
+          );
+        }
+
+        void refetch();
+      } catch {
+        // Keep badge until a successful read
+      }
+    },
+    [user, refetch]
+  );
 
   useEffect(() => {
     void refetch();

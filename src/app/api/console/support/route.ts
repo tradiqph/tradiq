@@ -14,6 +14,7 @@ import {
 } from "@/lib/support-tickets";
 import { supportReplyPushMessage } from "@/lib/push/copy";
 import { sendUserPush } from "@/lib/push/send-user-push";
+import { isOwnedAdminReplyAttachmentPath } from "@/lib/support-attachments";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
 
 const PAGE_SIZE = 20;
@@ -130,7 +131,19 @@ export async function PATCH(request: NextRequest) {
         return apiBadRequest(parsed.error.issues[0]?.message ?? "Invalid reply");
       }
 
-      const message = sanitizeSupportText(parsed.data.message, 2000);
+      const message = sanitizeSupportText(parsed.data.message ?? "", 2000);
+      const attachmentPaths = parsed.data.attachmentPaths ?? [];
+
+      if (!message && attachmentPaths.length === 0) {
+        return apiBadRequest("Reply must include a message or attachment");
+      }
+
+      for (const path of attachmentPaths) {
+        if (!isOwnedAdminReplyAttachmentPath(path, decoded.uid)) {
+          return apiBadRequest("Invalid attachment");
+        }
+      }
+
       const ticketRef = db.collection("supportTickets").doc(parsed.data.ticketId);
       const ticketSnap = await ticketRef.get();
       if (!ticketSnap.exists) {
@@ -142,10 +155,11 @@ export async function PATCH(request: NextRequest) {
         authorRole: "admin",
         authorEmail: decoded.email,
         body: message,
+        attachmentPaths,
       });
 
       const ticketUserId = ticketSnap.data()?.userId as string | undefined;
-      if (ticketUserId) {
+      if (ticketUserId && message) {
         await sendUserPush(
           db,
           ticketUserId,

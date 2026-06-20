@@ -1,13 +1,15 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Calendar, X } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
 import { ConsoleLoader } from "@/components/console/console-loader";
+import { ConsoleTablePagination } from "@/components/console/console-table-pagination";
 import { MemberInvestmentsTable } from "@/components/console/member-investments-table";
 import { StatCard } from "@/components/console/stat-card";
-import { useConsoleFetch } from "@/hooks/use-console-fetch";
+import { useAuth } from "@/hooks/use-auth";
+import { CONSOLE_LIST_PAGE_SIZE } from "@/lib/console/pagination";
 import { groupInvestmentsByMember } from "@/lib/console/investments-group";
 import { formatPeso } from "@/lib/finance";
 import {
@@ -41,9 +43,14 @@ interface InvestmentsResponse {
     source: string | null;
     stale: boolean;
   } | null;
+  total: number;
+  pageSize: number;
+  hasMore: boolean;
+  nextCursor: string | null;
 }
 
 function InvestmentsContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const initialDueToday = searchParams.get("dueToday") === "true";
   const initialPayoutDay =
@@ -52,26 +59,80 @@ function InvestmentsContent() {
 
   const [status, setStatus] = useState<StatusFilter>("active");
   const [payoutDay, setPayoutDay] = useState(initialPayoutDay);
+  const [data, setData] = useState<InvestmentsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+
   const dueTodayOnly = payoutDay === manilaTodayKey();
 
-  const url = useMemo(() => {
-    const params = new URLSearchParams({ status });
-    if (payoutDay) {
-      params.set("payoutDay", payoutDay);
-      if (dueTodayOnly) params.set("dueToday", "true");
-    }
-    return `/api/console/investments?${params}`;
-  }, [status, payoutDay, dueTodayOnly]);
+  const fetchInvestments = useCallback(
+    async (cursor: string | null) => {
+      if (!user) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          status,
+          limit: String(CONSOLE_LIST_PAGE_SIZE),
+        });
+        if (payoutDay) {
+          params.set("payoutDay", payoutDay);
+          if (dueTodayOnly) params.set("dueToday", "true");
+        }
+        if (cursor) params.set("cursor", cursor);
 
-  const { data, loading, error } = useConsoleFetch<InvestmentsResponse>(url, [
-    status,
-    payoutDay,
-  ]);
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/console/investments?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = (await res.json()) as InvestmentsResponse & {
+          error?: string;
+        };
+        if (!res.ok) {
+          setError(json.error ?? "Failed to load investments");
+          return;
+        }
+
+        setData(json);
+        setHasMore(Boolean(json.hasMore));
+        setNextCursor(json.nextCursor ?? null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user, status, payoutDay, dueTodayOnly]
+  );
+
+  useEffect(() => {
+    setPage(1);
+    setCursors([null]);
+    void fetchInvestments(null);
+  }, [fetchInvestments]);
 
   const memberGroups = useMemo(
     () => groupInvestmentsByMember(data?.investments ?? []),
     [data?.investments]
   );
+
+  const goNext = () => {
+    if (!hasMore || !nextCursor) return;
+    const newPage = page + 1;
+    setCursors((current) => [...current, nextCursor]);
+    setPage(newPage);
+    void fetchInvestments(nextCursor);
+  };
+
+  const goPrev = () => {
+    if (page <= 1) return;
+    const newPage = page - 1;
+    const cursor = cursors[newPage - 1] ?? null;
+    setPage(newPage);
+    void fetchInvestments(cursor);
+  };
 
   const tabs: { key: StatusFilter; label: string }[] = [
     { key: "active", label: "Active" },
@@ -79,9 +140,10 @@ function InvestmentsContent() {
     { key: "all", label: "All" },
   ];
 
+  const totalBots = data?.total ?? 0;
   const botsShownSub =
     memberGroups.length > 0
-      ? `${data?.investments.length ?? 0} bots · ${memberGroups.length} members`
+      ? `${data?.investments.length ?? 0} bots on this page · ${memberGroups.length} members`
       : data?.summary?.completingTodayCount
         ? `${data.summary.completingTodayCount} completing today`
         : undefined;
@@ -141,7 +203,7 @@ function InvestmentsContent() {
           />
           <StatCard
             label="Bots shown"
-            value={String(data.investments.length)}
+            value={String(totalBots)}
             sub={botsShownSub}
           />
         </div>
@@ -203,20 +265,32 @@ function InvestmentsContent() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data ? (
         <ConsoleLoader variant="page" label="Loading investments" />
       ) : error ? (
         <ConsoleError message={error} />
       ) : (
-        <MemberInvestmentsTable
-          groups={memberGroups}
-          dueColumnLabel={dueColumnLabel}
-          emptyMessage={
-            payoutDay
-              ? `No bot payouts on ${formatManilaDateLabel(payoutDay)}`
-              : "No bot investments found"
-          }
-        />
+        <div className="space-y-3">
+          <MemberInvestmentsTable
+            groups={memberGroups}
+            dueColumnLabel={dueColumnLabel}
+            emptyMessage={
+              payoutDay
+                ? `No bot payouts on ${formatManilaDateLabel(payoutDay)}`
+                : "No bot investments found"
+            }
+          />
+          <ConsoleTablePagination
+            page={page}
+            pageSize={CONSOLE_LIST_PAGE_SIZE}
+            pageCount={data?.investments.length ?? 0}
+            total={totalBots}
+            hasMore={hasMore}
+            loading={loading}
+            onPrev={goPrev}
+            onNext={goNext}
+          />
+        </div>
       )}
     </div>
   );

@@ -185,17 +185,22 @@ export async function serializeTicket(
       .collection("replies")
       .orderBy("createdAt", "asc")
       .get();
-    ticket.replies = repliesSnap.docs.map((r) => {
-      const d = r.data();
-      return {
-        id: r.id,
-        authorId: d.authorId,
-        authorRole: d.authorRole,
-        authorEmail: d.authorEmail,
-        body: d.body,
-        createdAt: serializeTimestamp(d.createdAt),
-      } satisfies SupportTicketReply;
-    });
+    ticket.replies = await Promise.all(
+      repliesSnap.docs.map(async (r) => {
+        const d = r.data();
+        const attachmentPaths = (d.attachmentPaths as string[] | undefined) ?? [];
+        return {
+          id: r.id,
+          authorId: d.authorId,
+          authorRole: d.authorRole,
+          authorEmail: d.authorEmail,
+          body: d.body,
+          attachmentPaths,
+          attachmentUrls: await signedUrlsForPaths(attachmentPaths),
+          createdAt: serializeTimestamp(d.createdAt),
+        } satisfies SupportTicketReply;
+      })
+    );
   }
 
   return ticket;
@@ -227,6 +232,7 @@ export async function appendReply(
     authorRole: "user" | "admin";
     authorEmail?: string;
     body: string;
+    attachmentPaths?: string[];
   }
 ) {
   const ticketRef = db.collection("supportTickets").doc(ticketId);
@@ -241,18 +247,24 @@ export async function appendReply(
     }
 
     const replyRef = ticketRef.collection("replies").doc();
+    const attachmentPaths = reply.attachmentPaths ?? [];
     tx.set(replyRef, {
       authorId: reply.authorId,
       authorRole: reply.authorRole,
       authorEmail: reply.authorEmail ?? null,
       body: reply.body,
+      attachmentPaths,
       createdAt: FieldValue.serverTimestamp(),
     });
+
+    const preview =
+      reply.body.trim() ||
+      (attachmentPaths.length > 0 ? "Sent an attachment" : "");
 
     tx.update(ticketRef, {
       updatedAt: FieldValue.serverTimestamp(),
       lastReplyAt: FieldValue.serverTimestamp(),
-      lastReplyPreview: reply.body.slice(0, 120),
+      lastReplyPreview: preview.slice(0, 120),
       lastReplyAuthorRole: reply.authorRole,
     });
   });

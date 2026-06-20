@@ -195,29 +195,32 @@ export function buildTransactionNotifications(
   return items;
 }
 
+function isSupportNotificationItem(
+  item: SupportUnreadItem | SupportNotificationItem
+): item is SupportNotificationItem {
+  return "isUnread" in item;
+}
+
 export function buildSupportNotifications(
   items: (SupportUnreadItem | SupportNotificationItem)[]
 ): AppNotification[] {
-  return items
-    .filter(
-      (item) => !("isUnread" in item) || (item as SupportNotificationItem).isUnread
-    )
-    .map((item) => {
-      const date = item.lastReplyAt
-        ? new Date(item.lastReplyAt.seconds * 1000)
-        : null;
+  return items.map((item) => {
+    const date = item.lastReplyAt
+      ? new Date(item.lastReplyAt.seconds * 1000)
+      : null;
 
-      return {
-        id: `support-${item.ticketId}`,
-        kind: "support" as const,
-        title: "Support replied",
-        body: item.preview || `${item.categoryLabel} — tap to read the response`,
-        time: formatNotificationTime(date),
-        type: "support" as const,
-        createdAt: date ?? undefined,
-        href: "/account?support=1",
-      };
-    });
+    return {
+      id: `support-${item.ticketId}`,
+      kind: "support" as const,
+      title: "Support replied",
+      body: item.preview || `${item.categoryLabel} — tap to read the response`,
+      time: formatNotificationTime(date),
+      type: "support" as const,
+      createdAt: date ?? undefined,
+      unread: isSupportNotificationItem(item) ? item.isUnread : true,
+      href: "/account?support=1",
+    };
+  });
 }
 
 export function sortNotificationsChronologically(

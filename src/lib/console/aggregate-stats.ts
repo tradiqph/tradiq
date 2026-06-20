@@ -4,6 +4,7 @@ import {
   enrichBotInvestment,
   isPayoutScheduledToday,
 } from "@/lib/investments";
+import { paginateByCursor, CONSOLE_LIST_PAGE_SIZE } from "@/lib/console/pagination";
 import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 import {
   getReferralTotals,
@@ -162,9 +163,13 @@ export async function aggregateConsoleStats(db: Firestore) {
 export async function fetchAllInvestments(
   db: Firestore,
   status: "active" | "completed" | "all" = "all",
-  options: { payoutDay?: string } = {}
+  options: {
+    payoutDay?: string;
+    limit?: number;
+    cursor?: string | null;
+  } = {}
 ) {
-  const { payoutDay } = options;
+  const { payoutDay, limit = CONSOLE_LIST_PAGE_SIZE, cursor = null } = options;
   const botRefs =
     status === "all"
       ? await fetchAllUserBots(db, undefined, true)
@@ -224,10 +229,17 @@ export async function fetchAllInvestments(
       ) / 100
     : null;
 
+  const sorted = filtered.sort((a, b) =>
+    (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? "")
+  );
+  const { page, total, hasMore, nextCursor } = paginateByCursor(
+    sorted,
+    cursor,
+    limit
+  );
+
   return {
-    investments: filtered.sort((a, b) =>
-      (b.subscribedAt ?? "").localeCompare(a.subscribedAt ?? "")
-    ),
+    investments: page,
     summary: {
       ...summary,
       todayLiability: Math.round(summary.todayLiability * 100) / 100,
@@ -242,5 +254,9 @@ export async function fetchAllInvestments(
           liability: filterDayLiability,
         }
       : null,
+    total,
+    pageSize: limit,
+    hasMore,
+    nextCursor,
   };
 }
