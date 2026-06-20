@@ -9,7 +9,7 @@ export const REFERRAL_SUBSCRIPTION_TIERS = [500, 1000, 5000] as const;
 export const DEPOSIT_PRESETS = [
   500, 1000, 3000, 5000, 10000, 20000, 50000, 100000,
 ] as const;
-export const BOT_PRESETS = [500, 1000, 3000, 5000, 10000] as const;
+export const BOT_PRESETS = [500, 1000, 3000, 5000, 10000, 100000] as const;
 
 export function formatPeso(amount: number): string {
   return `₱${amount.toLocaleString("en-PH", {
@@ -61,7 +61,7 @@ export function calculateDailyEarning(botAmount: number): number {
 
 export const DEPOSIT_MIN_AMOUNT = 500;
 export const BOT_MIN_AMOUNT = 500;
-export const BOT_MAX_AMOUNT = 10000;
+export const BOT_MAX_AMOUNT = 100_000;
 export const WITHDRAWAL_MIN_AMOUNT = 300;
 export const WITHDRAWAL_MAX_AMOUNT = 10000;
 export const WITHDRAWAL_PROCESSING_FEE_RATE = 0.04;

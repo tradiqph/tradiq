@@ -14,6 +14,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import {
   BOT_MIN_AMOUNT,
+  BOT_MAX_AMOUNT,
   BOT_PRESETS,
   BOT_TERM_DAYS,
   calculateBotTermProjection,
@@ -139,13 +140,15 @@ export function SubscribeBotModal({
           <Input
             type="number"
             min={BOT_MIN_AMOUNT}
+            max={BOT_MAX_AMOUNT}
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="mt-1 border-amber-500/20 bg-black text-lg text-white"
           />
           <p className="mt-1 text-[10px] text-zinc-500">
-            Minimum subscription {formatPeso(BOT_MIN_AMOUNT)}
+            {formatPeso(BOT_MIN_AMOUNT)} minimum · {formatPeso(BOT_MAX_AMOUNT)}{" "}
+            maximum per bot
           </p>
           {amountError && (
             <p className="mt-1 text-[10px] text-red-400">{amountError}</p>
