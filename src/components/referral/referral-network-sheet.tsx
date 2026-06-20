@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, Users } from "lucide-react";
 import { DataTable } from "@/components/console/data-table";
+import { PesoAmount } from "@/components/ui/peso-amount";
 import {
   Sheet,
   SheetContent,
@@ -28,6 +29,7 @@ interface NetworkMemberRow {
   id: string;
   displayName: string;
   activeBots: number;
+  activeBotPrincipal: number;
 }
 
 export function ReferralNetworkSheet({
@@ -130,7 +132,7 @@ export function ReferralNetworkSheet({
             Your network
           </SheetTitle>
           <p className="text-sm text-zinc-500">
-            Downline members and their active bots
+            Downline members, active bots, and bot investment
           </p>
         </SheetHeader>
 
@@ -203,6 +205,16 @@ export function ReferralNetworkSheet({
                       key: "bots",
                       header: "Active bots",
                       cell: (row) => row.activeBots,
+                    },
+                    {
+                      key: "investment",
+                      header: "Bot investment",
+                      cell: (row) =>
+                        row.activeBotPrincipal > 0 ? (
+                          <PesoAmount amount={row.activeBotPrincipal} gold />
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        ),
                     },
                   ]}
                 />

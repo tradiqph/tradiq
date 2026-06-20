@@ -5,6 +5,7 @@ import { Search, Users } from "lucide-react";
 import { ConsoleError } from "@/components/console/console-error";
 import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
+import { PesoAmount } from "@/components/ui/peso-amount";
 import {
   Sheet,
   SheetContent,
@@ -36,6 +37,7 @@ interface NetworkMemberRow {
   displayName: string;
   email: string;
   activeBots: number;
+  activeBotPrincipal: number;
 }
 
 export function MemberNetworkSheet({
@@ -219,6 +221,16 @@ export function MemberNetworkSheet({
                       key: "bots",
                       header: "Active bots",
                       cell: (row) => row.activeBots,
+                    },
+                    {
+                      key: "investment",
+                      header: "Bot invested",
+                      cell: (row) =>
+                        row.activeBotPrincipal > 0 ? (
+                          <PesoAmount amount={row.activeBotPrincipal} gold />
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        ),
                     },
                   ]}
                 />

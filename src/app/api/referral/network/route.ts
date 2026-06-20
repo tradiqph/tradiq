@@ -81,11 +81,14 @@ export async function GET(request: NextRequest) {
   const membersWithBots = await attachActiveBotCounts(db, page.items);
 
   return NextResponse.json({
-    members: membersWithBots.map(({ id, displayName, activeBots }) => ({
-      id,
-      displayName: displayName.trim() || "Member",
-      activeBots,
-    })),
+    members: membersWithBots.map(
+      ({ id, displayName, activeBots, activeBotPrincipal }) => ({
+        id,
+        displayName: displayName.trim() || "Member",
+        activeBots,
+        activeBotPrincipal,
+      })
+    ),
     total: page.total,
     limit: page.limit,
     offset: page.offset,

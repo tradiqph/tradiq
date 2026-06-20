@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell } from "lucide-react";
+import { ArrowLeft, Bell, Headphones } from "lucide-react";
 import { NotificationsSheet } from "@/components/layout/notifications-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationReadState } from "@/hooks/use-notification-read";
@@ -65,7 +65,7 @@ export function AppHeader({
     ]);
   }, [profile, transactions, supportNotificationItems, referralSourceNames]);
 
-  const { hasUnread, markSeen, notifications } = useNotificationReadState(
+  const { markSeen, notifications } = useNotificationReadState(
     rawNotifications,
     notificationsOpen
   );
@@ -107,8 +107,11 @@ export function AppHeader({
     );
   }
 
-  const showBadge =
-    (hasUnread || supportUnreadCount > 0) && !notificationsOpen;
+  const showBellBadge =
+    !notificationsOpen &&
+    notifications.some(
+      (item) => item.unread && !item.id.startsWith("support-")
+    );
   const displayName = profile?.displayName ?? "Trader";
 
   return (
@@ -124,17 +127,29 @@ export function AppHeader({
               TRADIQ
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setNotificationsOpen(true)}
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/5 bg-zinc-950 text-amber-400 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 cursor-pointer"
-            aria-label="Open notifications"
-          >
-            <Bell className="h-4 w-4" />
-            {showBadge && (
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-orange-500" />
-            )}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/account?support=1"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-zinc-950 text-amber-400 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 cursor-pointer"
+              aria-label="Open support"
+            >
+              <Headphones className="h-4 w-4" />
+              {supportUnreadCount > 0 && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-orange-500" />
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen(true)}
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/5 bg-zinc-950 text-amber-400 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 cursor-pointer"
+              aria-label="Open notifications"
+            >
+              <Bell className="h-4 w-4" />
+              {showBellBadge && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-orange-500" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
 

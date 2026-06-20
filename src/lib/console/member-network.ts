@@ -15,6 +15,7 @@ export interface NetworkMemberRow {
   displayName: string;
   email: string;
   activeBots: number;
+  activeBotPrincipal: number;
 }
 
 export interface NetworkLevelSummary {
@@ -58,6 +59,7 @@ export function buildDownlineLevels(
         displayName: user.displayName,
         email: user.email,
         activeBots: 0,
+        activeBotPrincipal: 0,
       });
       nextFrontier.add(user.id);
     }
@@ -138,11 +140,19 @@ export async function attachActiveBotCounts(
         .get();
 
       let activeBots = 0;
+      let activeBotPrincipal = 0;
       for (const botDoc of botsSnap.docs) {
-        if (botDoc.data().status === "active") activeBots += 1;
+        const bot = botDoc.data();
+        if (bot.status !== "active") continue;
+        activeBots += 1;
+        activeBotPrincipal += bot.amount ?? 0;
       }
 
-      return { ...member, activeBots };
+      return {
+        ...member,
+        activeBots,
+        activeBotPrincipal: Math.round(activeBotPrincipal * 100) / 100,
+      };
     })
   );
 }

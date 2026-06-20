@@ -66,8 +66,13 @@ const LEADERBOARD_CATEGORIES = {
 
 function PioneerExample() {
   return (
-    <GlassCard className="mt-3">
-      <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-amber-400/90">
+    <GlassCard className="mt-3 space-y-2">
+      <p className="text-center text-sm font-medium leading-snug text-white">
+        Invite now while you still can — every direct referral earns{" "}
+        <span className="font-bold text-amber-300">15%</span> before it
+        drops to 7%. Build your team before time runs out.
+      </p>
+      <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-amber-400/90">
         Live countdown to pioneer end
       </p>
       <V2PreviewCountdown compact />

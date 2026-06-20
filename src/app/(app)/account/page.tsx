@@ -16,7 +16,6 @@ import {
   Download,
   Terminal,
   ImageIcon,
-  Bell,
   Volume2,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
@@ -51,10 +50,6 @@ import { WithdrawalAccount } from "@/types";
 import { validateWithdrawalAccount, getAccountTypeConfig } from "@/lib/withdrawal-accounts";
 import { isPwaInstalled, promptPwaInstall } from "@/lib/pwa-install";
 import { isSuperAdminRole } from "@/lib/roles";
-import {
-  enablePushNotifications,
-  disablePushNotifications,
-} from "@/components/push/push-notifications-bootstrap";
 import {
   isNotificationSoundEnabled,
   setNotificationSoundEnabled,
@@ -198,7 +193,6 @@ function AccountContent() {
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [pushToggling, setPushToggling] = useState(false);
 
   useEffect(() => {
     setSoundEnabled(isNotificationSoundEnabled());
@@ -227,32 +221,6 @@ function AccountContent() {
     if (profile?.referralCode) {
       navigator.clipboard.writeText(profile.referralCode);
       toast.success("Referral code copied");
-    }
-  };
-
-  const handlePushToggle = async (enabled: boolean) => {
-    if (!user) return;
-    setPushToggling(true);
-    try {
-      const ok = enabled
-        ? await enablePushNotifications(user)
-        : await disablePushNotifications(user);
-      if (ok) {
-        await refreshProfile();
-        toast.success(
-          enabled
-            ? "Push notifications enabled"
-            : "Push notifications disabled"
-        );
-      } else {
-        toast.error(
-          enabled
-            ? "Could not enable push notifications. Check browser permission."
-            : "Could not disable push notifications"
-        );
-      }
-    } finally {
-      setPushToggling(false);
     }
   };
 
@@ -633,14 +601,6 @@ function AccountContent() {
           <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
             Notifications
           </p>
-          <SettingsToggle
-            icon={Bell}
-            title="Push notifications"
-            subtitle="Alerts when the app is closed or in the background"
-            checked={profile?.pushNotificationsEnabled === true}
-            disabled={pushToggling}
-            onCheckedChange={(enabled) => void handlePushToggle(enabled)}
-          />
           <SettingsToggle
             icon={Volume2}
             title="In-app alert sound"

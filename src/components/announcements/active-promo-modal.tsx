@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Copy, Percent, X, Zap } from "lucide-react";
+import Link from "next/link";
+import { Copy, ImageIcon, Percent, X, Zap } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -56,15 +57,31 @@ export function ActivePromoModal({ open, onOpenChange }: ActivePromoModalProps) 
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 pb-4">
-          <div className="relative mx-auto aspect-[9/16] w-full max-h-[min(62dvh,520px)] overflow-hidden rounded-2xl border border-amber-500/25 bg-black shadow-[0_0_32px_rgba(245,158,11,0.1)]">
+          <div className="overflow-hidden rounded-2xl border border-amber-500/25 bg-black shadow-[0_0_32px_rgba(245,158,11,0.1)]">
             <Image
               src={ACTIVE_PROMO_IMAGE}
               alt={ACTIVE_PROMO.title}
-              fill
-              className="object-contain object-center"
+              width={1080}
+              height={1920}
+              className="block w-full h-auto"
               sizes="(max-width: 448px) 100vw, 448px"
               unoptimized
             />
+            <div className="border-t border-amber-500/30 bg-black/90 px-2.5 py-2.5">
+              <div className="flex gap-2">
+                <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                <p className="text-[11px] leading-snug text-zinc-200">
+                  {ACTIVE_PROMO.proofNote}{" "}
+                  <Link
+                    href="/account?support=1"
+                    onClick={() => onOpenChange(false)}
+                    className="font-semibold text-amber-300 underline-offset-2 hover:underline"
+                  >
+                    Open Support
+                  </Link>
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="mt-3 space-y-2 rounded-2xl border border-amber-500/20 bg-white/[0.04] p-3 backdrop-blur-sm">

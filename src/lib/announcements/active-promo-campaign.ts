@@ -15,6 +15,8 @@ export const ACTIVE_PROMO = {
     "Faster transaction processing",
     "Faster approval for referral payout",
   ],
+  proofNote:
+    "After sending, submit your proof of transaction (screenshot or receipt) via Support so we can credit your account.",
 } as const;
 
 export function isActivePromoAvailable(): boolean {
