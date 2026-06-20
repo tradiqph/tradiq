@@ -22,6 +22,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { generateReferralCode } from "@/lib/finance";
+import { clearV2PreviewSessionFlag } from "@/lib/announcements/v2-preview-campaign";
 import { createEmptyReferralStats } from "@/lib/referral-stats";
 import { userHasSecurityPin } from "@/lib/security/pin";
 import { UserProfile } from "@/types";
@@ -268,6 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     if (!auth) throw new Error("Firebase not configured");
+    clearV2PreviewSessionFlag();
     profileCacheRef.current = null;
     await signOut(auth);
   };

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
+import { V2PreviewAnnouncementFab } from "@/components/announcements/v2-preview-announcement-fab";
+import { ActivePromoFab } from "@/components/announcements/active-promo-fab";
+import { ActivePromoModal } from "@/components/announcements/active-promo-modal";
 import { WalletCarousel } from "@/components/wallet/wallet-carousel";
 import { QuickActions } from "@/components/wallet/quick-actions";
 import { RecentTransactions } from "@/components/wallet/recent-transactions";
@@ -21,6 +24,7 @@ export default function DashboardPage() {
   usePendingDepositSync(hasPendingDeposits);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
 
   if (!profile) {
     return (
@@ -46,6 +50,9 @@ export default function DashboardPage() {
         />
       )}
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} />
+      <ActivePromoFab onClick={() => setPromoOpen(true)} />
+      <ActivePromoModal open={promoOpen} onOpenChange={setPromoOpen} />
+      <V2PreviewAnnouncementFab />
       <WithdrawModal
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
