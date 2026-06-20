@@ -4,10 +4,12 @@ import Link from "next/link";
 import { ConsoleLoader } from "@/components/console/console-loader";
 import { ConsoleError } from "@/components/console/console-error";
 import { LiabilityCalendar } from "@/components/console/liability-calendar";
+import { PaymongoDashboardCards } from "@/components/console/paymongo-dashboard-cards";
 import { StatCard } from "@/components/console/stat-card";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { useConsoleFetch } from "@/hooks/use-console-fetch";
 import { formatPeso } from "@/lib/finance";
+import type { PaymongoDashboardData } from "@/lib/paymongo-dashboard";
 import { ArrowRight, Wallet, TrendingUp } from "lucide-react";
 
 interface ConsoleStats {
@@ -39,6 +41,9 @@ export default function ConsoleDashboardPage() {
   const { data, loading, error } = useConsoleFetch<ConsoleStats>(
     "/api/console/stats"
   );
+  const paymongo = useConsoleFetch<PaymongoDashboardData>(
+    "/api/console/paymongo"
+  );
 
   if (loading) {
     return <ConsoleLoader variant="page" label="Loading dashboard" />;
@@ -62,6 +67,12 @@ export default function ConsoleDashboardPage() {
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="text-sm text-zinc-500">Platform overview</p>
       </div>
+
+      <PaymongoDashboardCards
+        data={paymongo.data}
+        loading={paymongo.loading}
+        error={paymongo.error}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
