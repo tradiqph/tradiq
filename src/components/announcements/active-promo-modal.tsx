@@ -61,8 +61,8 @@ export function ActivePromoModal({ open, onOpenChange }: ActivePromoModalProps) 
             <Image
               src={ACTIVE_PROMO_IMAGE}
               alt={ACTIVE_PROMO.title}
-              width={1080}
-              height={1920}
+              width={682}
+              height={1024}
               className="block w-full h-auto"
               sizes="(max-width: 448px) 100vw, 448px"
               unoptimized
