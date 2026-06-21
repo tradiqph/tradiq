@@ -21,6 +21,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { isValidReferralCode } from "@/lib/security/validation";
 
 function RegisterForm() {
   const { register } = useAuth();
@@ -37,7 +38,7 @@ function RegisterForm() {
 
   useEffect(() => {
     const ref = searchParams.get("ref")?.trim();
-    if (ref) {
+    if (ref && isValidReferralCode(ref)) {
       setReferralCode(ref.toUpperCase());
       setReferralFromLink(true);
     }

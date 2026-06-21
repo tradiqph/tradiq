@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowLeft, Shield, Sparkles } from "lucide-react";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -48,7 +49,7 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 md:px-8">
+      <div className={`relative z-10 flex min-h-dvh flex-col ${marketingGutter} py-6`}>
         <motion.header className="mb-6 md:mb-8" {...motionProps(0)}>
           <Link
             href="/"
@@ -59,8 +60,8 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
           </Link>
         </motion.header>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-10 pb-8 lg:flex-row lg:items-center lg:gap-16">
-          <div className="w-full max-w-md lg:max-w-lg">
+        <div className="flex flex-1 flex-col items-center justify-center gap-10 pb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12 xl:gap-20">
+          <div className="w-full min-w-0 flex-1 lg:max-w-2xl xl:max-w-3xl">
             <motion.div
               className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-sm text-amber-400"
               {...motionProps(1)}
@@ -125,7 +126,7 @@ export function AuthShell({ children, heroTitle, heroSubtitle }: AuthShellProps)
           </div>
 
           <motion.div
-            className="w-full max-w-md"
+            className="w-full max-w-md shrink-0 lg:max-w-md xl:max-w-lg"
             initial={reduceMotion ? undefined : { opacity: 0, x: 16 }}
             animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
             transition={{ delay: 0.1, duration: 0.35, ease: EASE_OUT }}

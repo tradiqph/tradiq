@@ -25,6 +25,7 @@ import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { auth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { passwordResetOobCodeSchema } from "@/lib/security/validation";
 import { toast } from "sonner";
 
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -65,7 +66,9 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
-  const oobCode = searchParams.get("oobCode")?.trim() ?? "";
+  const rawOobCode = searchParams.get("oobCode")?.trim() ?? "";
+  const parsedOobCode = passwordResetOobCodeSchema.safeParse(rawOobCode);
+  const oobCode = parsedOobCode.success ? parsedOobCode.data : "";
 
   const [pageState, setPageState] = useState<PageState>(
     oobCode ? "verifying" : "invalid"

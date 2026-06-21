@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
 import { serializeDoc } from "@/lib/console/serialize";
+import {
+  checkRateLimit,
+  getClientIp,
+} from "@/lib/security/rate-limit";
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
@@ -56,6 +60,20 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const ip = getClientIp(request);
+  const limit = checkRateLimit({
+    scope: "console-withdrawals-patch",
+    key: `${auth.decoded.uid}:${ip}`,
+    limit: 20,
+    windowSec: 60,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+    );
   }
 
   const { requestId, action } = await request.json();

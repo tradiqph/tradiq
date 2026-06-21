@@ -13,6 +13,17 @@ export const referralCodeSchema = z
   .toUpperCase()
   .regex(/^TRD-[A-Z]{1,6}-\d{4}$/, "Invalid referral code format");
 
+export const passwordResetOobCodeSchema = z
+  .string()
+  .trim()
+  .min(1, "Reset link is invalid")
+  .max(256, "Reset link is invalid")
+  .regex(/^[A-Za-z0-9_-]+$/, "Reset link is invalid");
+
+export function isValidReferralCode(raw: string): boolean {
+  return referralCodeSchema.safeParse(raw.trim().toUpperCase()).success;
+}
+
 export const pinSchema = z
   .string()
   .regex(/^\d{4,6}$/, "PIN must be 4-6 digits");

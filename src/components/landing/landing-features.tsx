@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { GlassCard } from "@/components/ui/glass-card";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 const features = [
   {
@@ -28,7 +29,7 @@ const features = [
 export function LandingFeatures() {
   return (
     <section id="features" className="py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-4 md:px-8">
+      <div className={marketingGutter}>
         <div className="mb-14 text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">
             Features

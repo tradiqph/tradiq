@@ -15,7 +15,9 @@ export function TimelineItem({ children, isLast, className }: TimelineItemProps)
           <span className="mt-1 w-px flex-1 bg-amber-500/20" />
         )}
       </div>
-      <div className="surface-flat mb-2 flex-1 p-3">{children}</div>
+      <div className="surface-flat mb-2 min-w-0 flex-1 overflow-hidden p-3">
+        {children}
+      </div>
     </div>
   );
 }

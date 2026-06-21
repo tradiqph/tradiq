@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { ArrowUpFromDot, Banknote, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
+import { MemberUplineSheet } from "@/components/console/member-upline-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoldButton } from "@/components/ui/gold-button";
 import { useAuth } from "@/hooks/use-auth";
-import { isCashDepositOperator } from "@/lib/console/cash-deposit";
+import { canUseCashDepositFeatures } from "@/lib/console/cash-deposit";
 import { isSuperAdminRole } from "@/lib/roles";
 import { toast } from "sonner";
 
@@ -41,6 +42,7 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [depositOpen, setDepositOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
+  const [uplineOpen, setUplineOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -52,8 +54,12 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
 
   const isSelf = user?.uid === member.id;
   const isProtected = isSuperAdminRole(member.role) || isSelf;
+  const operatorEmail = user?.email ?? profile?.email;
   const canCreditDeposit =
-    isCashDepositOperator(profile?.email) && !isProtected;
+    canUseCashDepositFeatures({
+      email: operatorEmail,
+      role: profile?.role,
+    }) && !isProtected;
 
   const patchMember = async (body: object) => {
     if (!user) return;
@@ -237,6 +243,13 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <Users className="mr-2 h-4 w-4" />
             Network
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setUplineOpen(true)}
+          >
+            <ArrowUpFromDot className="mr-2 h-4 w-4" />
+            See upline
+          </DropdownMenuItem>
           {canCreditDeposit && (
             <>
               <DropdownMenuItem
@@ -286,6 +299,12 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       <MemberNetworkSheet
         open={networkOpen}
         onOpenChange={setNetworkOpen}
+        member={member}
+      />
+
+      <MemberUplineSheet
+        open={uplineOpen}
+        onOpenChange={setUplineOpen}
         member={member}
       />
 

@@ -5,9 +5,17 @@ import { reconcileUplineReferralMemberCounts } from "@/lib/admin-calculations";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { trackReferralSignup } from "@/lib/referral-payout";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
+import { referralCodeSchema } from "@/lib/security/validation";
 
 function normalizeReferralCode(raw: string): string {
   return raw.trim().toUpperCase();
+}
+
+function parseReferralCode(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const normalized = normalizeReferralCode(raw);
+  const parsed = referralCodeSchema.safeParse(normalized);
+  return parsed.success ? parsed.data : null;
 }
 
 async function resolveReferrerUid(
@@ -44,7 +52,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (body?.referralCode && typeof body.referralCode === "string") {
-      referralCode = normalizeReferralCode(body.referralCode);
+      const parsed = parseReferralCode(body.referralCode);
+      if (!parsed) {
+        return apiBadRequest("Invalid referral code format");
+      }
+      referralCode = parsed;
     }
   } catch {
     // Empty body is fine — may retry with stored signupReferralCode
@@ -58,12 +70,12 @@ export async function POST(request: NextRequest) {
     }
 
     let userData = userSnap.data()!;
-    const codeToResolve =
-      referralCode ??
-      (typeof userData.signupReferralCode === "string"
-        ? userData.signupReferralCode
-        : undefined);
+    const storedCode =
+      typeof userData.signupReferralCode === "string"
+        ? parseReferralCode(userData.signupReferralCode)
+        : null;
 
+    const codeToResolve = referralCode ?? storedCode ?? undefined;
     const hadReferralCode = Boolean(codeToResolve);
 
     if (!userData.referredBy && codeToResolve) {
@@ -80,7 +92,7 @@ export async function POST(request: NextRequest) {
       } else {
         await userRef.update({ signupReferralCode: codeToResolve });
       }
-    } else if (hadReferralCode && !userData.signupReferralCode) {
+    } else if (hadReferralCode && !userData.signupReferralCode && codeToResolve) {
       await userRef.update({ signupReferralCode: codeToResolve });
     }
 

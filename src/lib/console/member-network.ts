@@ -24,6 +24,23 @@ export interface NetworkLevelSummary {
   count: number;
 }
 
+export interface UplineMemberRow {
+  level: number;
+  label: string;
+  id: string;
+  displayName: string;
+  email: string;
+  referralCode: string;
+}
+
+const UPLINE_LEVEL_LABELS = [
+  "Direct upline",
+  "Level 2 upline",
+  "Level 3 upline",
+  "Level 4 upline",
+  "Level 5 upline",
+] as const;
+
 export function parseUserRecords(
   docs: FirebaseFirestore.QueryDocumentSnapshot[]
 ): NetworkUserRecord[] {
@@ -36,6 +53,37 @@ export function parseUserRecords(
       referredBy: (data.referredBy as string | null) ?? null,
     };
   });
+}
+
+export function buildUplineChain(
+  memberId: string,
+  users: NetworkUserRecord[],
+  referralCodes: Map<string, string>
+): UplineMemberRow[] {
+  const byId = new Map(users.map((user) => [user.id, user]));
+  const member = byId.get(memberId);
+  if (!member) return [];
+
+  const chain: UplineMemberRow[] = [];
+  let currentId: string | null = member.referredBy;
+
+  for (let index = 0; index < REFERRAL_RATES.length && currentId; index++) {
+    const upline = byId.get(currentId);
+    if (!upline) break;
+
+    chain.push({
+      level: index + 1,
+      label: UPLINE_LEVEL_LABELS[index] ?? `Level ${index + 1} upline`,
+      id: upline.id,
+      displayName: upline.displayName,
+      email: upline.email,
+      referralCode: referralCodes.get(upline.id) ?? "",
+    });
+
+    currentId = upline.referredBy;
+  }
+
+  return chain;
 }
 
 export function buildDownlineLevels(

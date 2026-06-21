@@ -1,0 +1,3 @@
+/** Full-width marketing/auth gutters — edge-to-edge on desktop, comfortable on mobile. */
+export const marketingGutter =
+  "w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24";

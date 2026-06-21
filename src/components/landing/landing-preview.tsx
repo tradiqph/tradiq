@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Check } from "lucide-react";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 const highlights = [
   "Real-time wallet & deposit balance tracking",
@@ -13,7 +14,9 @@ const highlights = [
 export function LandingPreview() {
   return (
     <section id="preview" className="py-20 md:py-28">
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2 md:px-8">
+      <div
+        className={`${marketingGutter} grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-20`}
+      >
         <div className="relative">
           <div className="absolute -inset-8 rounded-full bg-amber-500/5 blur-3xl" />
           <Image

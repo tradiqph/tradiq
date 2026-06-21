@@ -14,6 +14,11 @@ import {
   type ReferralStats,
 } from "@/lib/referral-stats";
 
+export interface ApplyReferralCommissionsOptions {
+  /** When set, commissions are idempotent per bot subscription. */
+  botId?: string;
+}
+
 async function ensureReferralStatsStructure(
   db: Firestore,
   userRef: FirebaseFirestore.DocumentReference
@@ -42,6 +47,30 @@ function applyLevelCommission(
     Math.round((stats.totalEarned + commission) * 100) / 100;
 }
 
+async function claimCommissionEvent(
+  db: Firestore,
+  subscriberUid: string,
+  botId: string,
+  amount: number
+): Promise<boolean> {
+  const ledgerRef = db
+    .collection("referralCommissionEvents")
+    .doc(`${subscriberUid}_${botId}`);
+
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(ledgerRef);
+    if (existing.exists) return false;
+
+    tx.set(ledgerRef, {
+      subscriberUid,
+      botId,
+      amount,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+}
+
 /**
  * One-time commission when a downline subscribes to a bot.
  * Does NOT run on daily bot earnings, deposits, or principal returns —
@@ -50,8 +79,21 @@ function applyLevelCommission(
 export async function applyReferralCommissions(
   db: Firestore,
   subscriberUid: string,
-  amount: number
+  amount: number,
+  options: ApplyReferralCommissionsOptions = {}
 ) {
+  const { botId } = options;
+
+  if (botId) {
+    const claimed = await claimCommissionEvent(
+      db,
+      subscriberUid,
+      botId,
+      amount
+    );
+    if (!claimed) return;
+  }
+
   const userSnap = await db.collection("users").doc(subscriberUid).get();
   if (!userSnap.exists) return;
 
@@ -95,6 +137,7 @@ export async function applyReferralCommissions(
           fromUserDisplayName: fromUserDisplayName || null,
           fromUserEmail: fromUserEmail || null,
           investmentAmount: amount,
+          botId: botId ?? null,
         },
         createdAt: FieldValue.serverTimestamp(),
       });

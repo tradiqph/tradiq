@@ -33,28 +33,25 @@ export function TransactionListItem({
 
   return (
     <TimelineItem isLast={isLast}>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-start gap-2 sm:gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">
           {getTransactionTypeLabel(tx)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-medium capitalize text-white">
+          <p className="truncate font-medium capitalize text-white">
             {tx.title ?? tx.type.replace("_", " ")}
           </p>
           <p className="truncate text-xs text-zinc-500">
             {getTransactionSubtitle(tx, referralSourceNames)}
           </p>
         </div>
-        <div className="text-right">
+        <div className="flex shrink-0 flex-col items-end gap-1 text-right">
           <span
-            className={`text-sm font-bold tabular-nums ${getTransactionAmountClassName(sign, isInactive)}`}
+            className={`text-xs font-bold tabular-nums sm:text-sm ${getTransactionAmountClassName(sign, isInactive)}`}
           >
             {formatSignedPeso(tx.amount, sign)}
           </span>
-          <Badge
-            variant={statusBadge.variant}
-            className="mt-1 text-[10px]"
-          >
+          <Badge variant={statusBadge.variant} className="text-[10px]">
             {statusBadge.label}
           </Badge>
         </div>

@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { GoldButton } from "@/components/ui/gold-button";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 export function LandingNav() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-amber-500/10 bg-black/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-8">
+      <div className={`${marketingGutter} flex items-center justify-between py-4`}>
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/assets/logo-tradiq.png"

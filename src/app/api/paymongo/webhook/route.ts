@@ -14,6 +14,18 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get("paymongo-signature");
   const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
 
+  if (!webhookSecret) {
+    console.error("[paymongo/webhook] PAYMONGO_WEBHOOK_SECRET is not set");
+    return NextResponse.json(
+      { error: "Webhook not configured" },
+      { status: 503 }
+    );
+  }
+
+  if (!verifyPaymongoSignature(rawBody, signature, webhookSecret)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   const db = getAdminDb();
   if (!db) {
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
@@ -61,18 +73,6 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json({ received: true });
-  }
-
-  if (!webhookSecret) {
-    console.error("[paymongo/webhook] PAYMONGO_WEBHOOK_SECRET is not set");
-    return NextResponse.json(
-      { error: "Webhook not configured" },
-      { status: 503 }
-    );
-  }
-
-  if (!verifyPaymongoSignature(rawBody, signature, webhookSecret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   const eventType = event.data?.attributes?.type;

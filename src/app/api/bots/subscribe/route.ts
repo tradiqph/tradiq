@@ -8,6 +8,10 @@ import { applyReferralCommissions } from "@/lib/referral-payout";
 import { sendBotInvestmentAlert } from "@/lib/email/send";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
 import { isProduction } from "@/lib/security/env";
+import {
+  checkRateLimit,
+  getClientIp,
+} from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   const decoded = await verifyAuthToken(request);
@@ -24,6 +28,20 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json({ subscribeLocally: true });
+  }
+
+  const ip = getClientIp(request);
+  const limit = checkRateLimit({
+    scope: "bots-subscribe",
+    key: `${decoded.uid}:${ip}`,
+    limit: 10,
+    windowSec: 60,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many subscription attempts. Try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+    );
   }
 
   let body: unknown;
@@ -94,7 +112,9 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    await applyReferralCommissions(db, decoded.uid, amount);
+    await applyReferralCommissions(db, decoded.uid, amount, {
+      botId: newBotId ?? undefined,
+    });
 
     try {
       const botsSnap = await userRef.collection("bots").get();

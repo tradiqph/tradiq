@@ -15,6 +15,11 @@ import {
   getClientIp,
 } from "@/lib/security/rate-limit";
 import { pinSchema } from "@/lib/security/validation";
+import {
+  clearPinFailures,
+  getPinLockoutMessage,
+  recordPinFailure,
+} from "@/lib/security/pin-lockout";
 import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
 import { normalizeReferralStats } from "@/lib/referral-stats";
 import { sendWithdrawalRequestAlert } from "@/lib/email/send";
@@ -93,6 +98,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (userData.securityPinHash) {
+    const lockoutMessage = getPinLockoutMessage(
+      userData.pinLockedUntil as FirebaseFirestore.Timestamp | undefined
+    );
+    if (lockoutMessage) {
+      return NextResponse.json({ error: lockoutMessage }, { status: 403 });
+    }
+
     const pinParsed = pinSchema.safeParse(payload.pin);
     if (!pinParsed.success) {
       return apiBadRequest("PIN required");
@@ -102,11 +114,14 @@ export async function POST(request: NextRequest) {
       userData.securityPinHash
     );
     if (!valid) {
+      await recordPinFailure(db, userRef);
       console.warn(
         `[withdrawals/create] Invalid PIN attempt uid=${decoded.uid}`
       );
       return NextResponse.json({ error: "Invalid PIN" }, { status: 403 });
     }
+
+    await clearPinFailures(userRef);
   }
 
   if ((userData.walletBalance ?? 0) < num) {

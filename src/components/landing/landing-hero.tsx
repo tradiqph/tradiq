@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { GoldButton } from "@/components/ui/gold-button";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 export function LandingHero() {
   return (
@@ -11,7 +12,9 @@ export function LandingHero() {
         <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-yellow-600/5 blur-[80px]" />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2 md:px-8">
+      <div
+        className={`${marketingGutter} relative grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-20`}
+      >
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-sm text-amber-400">
             <Sparkles className="h-4 w-4" />
@@ -23,7 +26,7 @@ export function LandingHero() {
               AI Copy Trading
             </span>
           </h1>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-zinc-400">
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400 lg:max-w-2xl">
             TradIQ combines automated copy-trading bots, instant QR Ph deposits,
             and a multi-level referral program — all in one premium mobile
             experience built for Filipino investors.
@@ -58,7 +61,7 @@ export function LandingHero() {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-md md:max-w-none">
+        <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:ml-auto lg:max-w-xl xl:max-w-2xl">
           <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-amber-500/20 to-transparent blur-2xl" />
           <Image
             src="/assets/landing-hero.png"

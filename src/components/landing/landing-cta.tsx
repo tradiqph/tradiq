@@ -2,11 +2,12 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { GoldButton } from "@/components/ui/gold-button";
 import { GlassCard } from "@/components/ui/glass-card";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 export function LandingCta() {
   return (
     <section className="pb-20 md:pb-28">
-      <div className="mx-auto max-w-4xl px-4 md:px-8">
+      <div className={marketingGutter}>
         <GlassCard glow className="relative overflow-hidden p-10 text-center md:p-14">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent" />
           <div className="relative">

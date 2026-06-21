@@ -8,6 +8,10 @@ import {
   validateAdminCashDepositAmount,
 } from "@/lib/console/cash-deposit";
 import { apiBadRequest, apiError } from "@/lib/security/api-errors";
+import {
+  checkRateLimit,
+  getClientIp,
+} from "@/lib/security/rate-limit";
 
 const bodySchema = z.object({
   amount: z.number(),
@@ -27,6 +31,20 @@ export async function POST(
     return NextResponse.json(
       { error: "Cash deposit access is not enabled for this account" },
       { status: 403 }
+    );
+  }
+
+  const ip = getClientIp(request);
+  const limit = checkRateLimit({
+    scope: "console-deposit-bonus",
+    key: `${auth.decoded.uid}:${ip}`,
+    limit: 10,
+    windowSec: 60,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
     );
   }
 

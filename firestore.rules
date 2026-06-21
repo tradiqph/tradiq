@@ -61,6 +61,8 @@ service cloud.firestore {
         'referralNetworkTracked',
         'signupReferralCode',
         'pushNotificationsEnabled',
+        'pinFailedAttempts',
+        'pinLockedUntil',
         'email',
       ];
     }
@@ -206,6 +208,10 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid);
         allow write: if false;
       }
+    }
+
+    match /referralCommissionEvents/{eventId} {
+      allow read, write: if false;
     }
   }
 }

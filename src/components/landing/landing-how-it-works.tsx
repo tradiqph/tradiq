@@ -1,5 +1,6 @@
 import { Wallet, Bot, TrendingUp, Banknote } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
+import { marketingGutter } from "@/lib/marketing-layout";
 
 const steps = [
   {
@@ -31,7 +32,7 @@ const steps = [
 export function LandingHowItWorks() {
   return (
     <section id="how-it-works" className="border-y border-amber-500/10 bg-zinc-950/50 py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-4 md:px-8">
+      <div className={marketingGutter}>
         <div className="mb-14 text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">
             How It Works

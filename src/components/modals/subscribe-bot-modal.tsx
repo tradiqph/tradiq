@@ -78,7 +78,7 @@ export function SubscribeBotModal({
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ amount: num }),
+            body: JSON.stringify({ amount: num, botId }),
           });
         } catch {
           // Commission sync is best-effort for local dev fallback
