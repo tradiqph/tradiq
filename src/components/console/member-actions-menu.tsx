@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpFromDot, Banknote, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { ArrowUpFromDot, Banknote, ClipboardList, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { MemberAuditSheet } from "@/components/console/member-audit-sheet";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import { MemberUplineSheet } from "@/components/console/member-upline-sheet";
 import {
@@ -43,6 +44,7 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [bonusOpen, setBonusOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
   const [uplineOpen, setUplineOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -250,6 +252,13 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <ArrowUpFromDot className="mr-2 h-4 w-4" />
             See upline
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setAuditOpen(true)}
+          >
+            <ClipboardList className="mr-2 h-4 w-4" />
+            Audit Account
+          </DropdownMenuItem>
           {canCreditDeposit && (
             <>
               <DropdownMenuItem
@@ -305,6 +314,12 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       <MemberUplineSheet
         open={uplineOpen}
         onOpenChange={setUplineOpen}
+        member={member}
+      />
+
+      <MemberAuditSheet
+        open={auditOpen}
+        onOpenChange={setAuditOpen}
         member={member}
       />
 
