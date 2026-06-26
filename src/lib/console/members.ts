@@ -141,5 +141,47 @@ export async function mapMemberDoc(
     activeBots,
     activeBotPrincipal: Math.round(activeBotPrincipal * 100) / 100,
     memberSince: d.memberSince?.toDate?.()?.toISOString() ?? null,
+    referredBy: (d.referredBy as string | null) ?? null,
+    uplineDisplayName: null as string | null,
+    uplineEmail: null as string | null,
   };
+}
+
+export type MappedMember = Awaited<ReturnType<typeof mapMemberDoc>>;
+
+export async function attachUplineDetails(
+  db: Firestore,
+  members: MappedMember[]
+): Promise<MappedMember[]> {
+  const uplineIds = [
+    ...new Set(
+      members
+        .map((m) => m.referredBy)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  const uplineMap = new Map<string, { displayName: string; email: string }>();
+
+  await Promise.all(
+    uplineIds.map(async (uid) => {
+      const snap = await db.collection("users").doc(uid).get();
+      if (!snap.exists) return;
+      const data = snap.data()!;
+      uplineMap.set(uid, {
+        displayName: String(data.displayName ?? ""),
+        email: String(data.email ?? ""),
+      });
+    })
+  );
+
+  return members.map((member) => {
+    if (!member.referredBy) return member;
+    const upline = uplineMap.get(member.referredBy);
+    return {
+      ...member,
+      uplineDisplayName: upline?.displayName ?? null,
+      uplineEmail: upline?.email ?? null,
+    };
+  });
 }

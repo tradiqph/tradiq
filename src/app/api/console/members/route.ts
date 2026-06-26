@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  attachUplineDetails,
   getMembersSummary,
   mapMemberDoc,
   memberMatchesSearch,
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   const search = (request.nextUrl.searchParams.get("search") ?? "")
     .trim()
     .toLowerCase();
-  const sortParam = request.nextUrl.searchParams.get("sort") ?? "email";
+  const sortParam = request.nextUrl.searchParams.get("sort") ?? "newest";
   const sort: MemberSort = sortParam === "newest" ? "newest" : "email";
   const limit = Math.min(
     parseInt(
@@ -51,7 +52,10 @@ export async function GET(request: NextRequest) {
     pageDocs = slice.slice(0, limit);
     const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
 
-    const members = await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)));
+    const members = await attachUplineDetails(
+      auth.db,
+      await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)))
+    );
 
     return NextResponse.json({
       members,
@@ -80,7 +84,10 @@ export async function GET(request: NextRequest) {
   pageDocs = snap.docs.slice(0, limit);
   const nextCursor = hasMore ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
 
-  const members = await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)));
+  const members = await attachUplineDetails(
+    auth.db,
+    await Promise.all(pageDocs.map((doc) => mapMemberDoc(doc)))
+  );
 
   return NextResponse.json({
     members,

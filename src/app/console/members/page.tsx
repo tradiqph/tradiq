@@ -27,6 +27,9 @@ interface Member {
   activeBots: number;
   activeBotPrincipal: number;
   memberSince: string | null;
+  referredBy: string | null;
+  uplineDisplayName: string | null;
+  uplineEmail: string | null;
 }
 
 interface MembersResponse {
@@ -58,7 +61,7 @@ export default function ConsoleMembersPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<MemberSort>("email");
+  const [sort, setSort] = useState<MemberSort>("newest");
   const [members, setMembers] = useState<Member[]>([]);
   const [summary, setSummary] = useState<MembersResponse["summary"] | null>(
     null
@@ -228,13 +231,21 @@ export default function ConsoleMembersPage() {
                 ),
               },
               {
-                key: "referral",
-                header: "Referral",
-                cell: (m) => (
-                  <span className="font-mono text-xs text-zinc-400">
-                    {m.referralCode}
-                  </span>
-                ),
+                key: "upline",
+                header: "Upline",
+                cell: (m) =>
+                  m.referredBy && (m.uplineEmail || m.uplineDisplayName) ? (
+                    <div>
+                      <p className="text-white">
+                        {m.uplineDisplayName || m.uplineEmail}
+                      </p>
+                      {m.uplineDisplayName && m.uplineEmail ? (
+                        <p className="text-xs text-zinc-500">{m.uplineEmail}</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-zinc-600">no upline</span>
+                  ),
               },
               {
                 key: "role",
@@ -312,6 +323,7 @@ export default function ConsoleMembersPage() {
                       email: m.email,
                       displayName: m.displayName,
                       role: m.role,
+                      referredBy: m.referredBy,
                     }}
                     onUpdated={() => void refetch()}
                   />

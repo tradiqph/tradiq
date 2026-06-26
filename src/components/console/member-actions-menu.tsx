@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpFromDot, Banknote, ClipboardList, Gift, Key, Lock, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { ArrowUpFromDot, Banknote, ClipboardList, Gift, Key, Lock, MoreHorizontal, Trash2, UserPlus, Users } from "lucide-react";
 import { MemberAuditSheet } from "@/components/console/member-audit-sheet";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
+import {
+  MemberSearchSelect,
+  type MemberSearchOption,
+} from "@/components/console/member-search-select";
 import { MemberUplineSheet } from "@/components/console/member-upline-sheet";
 import {
   DropdownMenu,
@@ -31,6 +35,7 @@ interface MemberActionsMenuProps {
     email: string;
     displayName: string;
     role: string;
+    referredBy: string | null;
   };
   onUpdated: () => void;
 }
@@ -45,6 +50,9 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [networkOpen, setNetworkOpen] = useState(false);
   const [uplineOpen, setUplineOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [assignUplineOpen, setAssignUplineOpen] = useState(false);
+  const [selectedUpline, setSelectedUpline] =
+    useState<MemberSearchOption | null>(null);
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -53,6 +61,7 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [bonusNote, setBonusNote] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignUplineLoading, setAssignUplineLoading] = useState(false);
 
   const isSelf = user?.uid === member.id;
   const isProtected = isSuperAdminRole(member.role) || isSelf;
@@ -62,6 +71,52 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       email: operatorEmail,
       role: profile?.role,
     }) && !isProtected;
+  const canAssignUpline = !member.referredBy;
+
+  const handleAssignUpline = async () => {
+    const email = selectedUpline?.email.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      toast.error("Select an upline member");
+      return;
+    }
+    if (!user) return;
+    setAssignUplineLoading(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `/api/console/members/${member.id}/assign-upline`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ uplineEmail: email }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to assign upline");
+
+      const uplineName =
+        data.upline?.displayName || data.upline?.email || "upline";
+      const commissioned = Number(data.botsCommissioned) || 0;
+      const botLabel =
+        commissioned === 1 ? "1 bot" : `${commissioned} bots`;
+
+      toast.success(
+        commissioned > 0
+          ? `Linked to ${uplineName} · L1–L5 commissions applied (${botLabel})`
+          : `Linked to ${uplineName}`
+      );
+      setAssignUplineOpen(false);
+      setSelectedUpline(null);
+      onUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setAssignUplineLoading(false);
+    }
+  };
 
   const patchMember = async (body: object) => {
     if (!user) return;
@@ -252,6 +307,15 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <ArrowUpFromDot className="mr-2 h-4 w-4" />
             See upline
           </DropdownMenuItem>
+          {canAssignUpline && (
+            <DropdownMenuItem
+              className="cursor-pointer text-amber-400"
+              onClick={() => setAssignUplineOpen(true)}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Assign upline
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="cursor-pointer"
             onClick={() => setAuditOpen(true)}
@@ -322,6 +386,57 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
         onOpenChange={setAuditOpen}
         member={member}
       />
+
+      <Dialog
+        open={assignUplineOpen}
+        onOpenChange={(open) => {
+          setAssignUplineOpen(open);
+          if (!open) {
+            setSelectedUpline(null);
+            setAssignUplineLoading(false);
+          }
+        }}
+      >
+        <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">
+          <DialogHeader>
+            <DialogTitle>Assign upline</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-zinc-400">
+            Set direct upline for{" "}
+            <span className="text-white">{member.displayName}</span> (
+            {member.email}). This links the referral and backfills L1–L5 bot
+            subscription commissions for existing bots.
+          </p>
+          <div className="space-y-2">
+            <Label className="text-zinc-400">Search upline</Label>
+            <MemberSearchSelect
+              value={selectedUpline}
+              onChange={setSelectedUpline}
+              excludeMemberId={member.id}
+              disabled={assignUplineLoading}
+              placeholder="Search by name or email"
+            />
+            {selectedUpline ? (
+              <p className="text-xs text-zinc-500">
+                Selected:{" "}
+                <span className="text-white">
+                  {selectedUpline.displayName || selectedUpline.email}
+                </span>{" "}
+                ({selectedUpline.email})
+              </p>
+            ) : null}
+          </div>
+          <GoldButton
+            className="w-full"
+            disabled={assignUplineLoading || !selectedUpline}
+            onClick={() => void handleAssignUpline()}
+          >
+            {assignUplineLoading
+              ? "Assigning…"
+              : "Assign upline & apply commissions"}
+          </GoldButton>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
         <DialogContent className="border-amber-500/20 bg-zinc-950 text-white">
