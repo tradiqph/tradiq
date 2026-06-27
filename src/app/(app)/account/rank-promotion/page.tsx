@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
+import { QaTestModeBanner } from "@/components/qa/qa-test-mode-banner";
+import { RankActivationSuccessDialog } from "@/components/rank/rank-activation-success-dialog";
 import { RankCard } from "@/components/rank/rank-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +15,7 @@ interface RankProgressResponse {
   currentRank: MemberRank;
   currentBadge: string;
   ranks: RankProgressCard[];
+  qaOverrideActive?: boolean;
 }
 
 export default function RankPromotionPage() {
@@ -22,6 +25,11 @@ export default function RankPromotionPage() {
   const [activatingRank, setActivatingRank] = useState<PromotableRank | null>(
     null
   );
+  const [activationSuccess, setActivationSuccess] = useState<{
+    badge: string;
+    label: string;
+    benefits: string[];
+  } | null>(null);
 
   const loadProgress = useCallback(async () => {
     if (!user) return;
@@ -60,6 +68,8 @@ export default function RankPromotionPage() {
   const handleActivate = async (rankId: PromotableRank) => {
     if (!user) return;
 
+    const activatedRank = data?.ranks.find((rank) => rank.id === rankId);
+
     setActivatingRank(rankId);
     try {
       const token = await user.getIdToken();
@@ -81,7 +91,11 @@ export default function RankPromotionPage() {
         throw new Error(body?.error ?? "Failed to activate rank");
       }
 
-      toast.success(`${body?.badge ?? "Rank"} activated!`);
+      setActivationSuccess({
+        badge: body?.badge ?? activatedRank?.badge ?? "Rank",
+        label: activatedRank?.label ?? rankId,
+        benefits: activatedRank?.benefits ?? [],
+      });
       await refreshProfile();
       await loadProgress();
     } catch (error) {
@@ -103,6 +117,7 @@ export default function RankPromotionPage() {
       />
 
       <div className="space-y-4 px-4 pb-4">
+        {data?.qaOverrideActive ? <QaTestModeBanner /> : null}
         {loading ? (
           <>
             <Skeleton className="h-72 w-full bg-zinc-800" />
@@ -120,6 +135,16 @@ export default function RankPromotionPage() {
           ))
         )}
       </div>
+
+      <RankActivationSuccessDialog
+        open={activationSuccess !== null}
+        onOpenChange={(open) => {
+          if (!open) setActivationSuccess(null);
+        }}
+        badge={activationSuccess?.badge ?? ""}
+        label={activationSuccess?.label ?? ""}
+        benefits={activationSuccess?.benefits ?? []}
+      />
     </>
   );
 }

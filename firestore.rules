@@ -66,6 +66,7 @@ service cloud.firestore {
         'email',
         'memberRank',
         'rankActivatedAt',
+        'claimedRewardTiers',
       ];
     }
 
@@ -218,6 +219,19 @@ service cloud.firestore {
 
     match /leadershipBonusEvents/{eventId} {
       allow read, write: if false;
+    }
+
+    match /reward_claims/{claimId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false;
+
+      match /statusHistory/{entryId} {
+        allow read: if isAdmin()
+          || (isSignedIn()
+            && get(/databases/$(database)/documents/reward_claims/$(claimId)).data.userId == request.auth.uid);
+        allow write: if false;
+      }
     }
   }
 }

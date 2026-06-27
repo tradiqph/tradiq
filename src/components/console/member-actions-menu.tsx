@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpFromDot, Banknote, ClipboardList, Crown, Gift, Key, Lock, MoreHorizontal, Trash2, UserPlus, Users } from "lucide-react";
+import { ArrowUpFromDot, Banknote, ClipboardList, Crown, FlaskConical, Gift, Key, Lock, MoreHorizontal, Package, Trash2, UserPlus, Users } from "lucide-react";
 import { MemberAuditSheet } from "@/components/console/member-audit-sheet";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import {
@@ -10,6 +10,8 @@ import {
 } from "@/components/console/member-search-select";
 import { MemberUplineSheet } from "@/components/console/member-upline-sheet";
 import { MemberRankSheet } from "@/components/console/member-rank-sheet";
+import { MemberQaSheet } from "@/components/console/member-qa-sheet";
+import { MemberRewardsSheet } from "@/components/console/member-rewards-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { GoldButton } from "@/components/ui/gold-button";
 import { useAuth } from "@/hooks/use-auth";
 import { canUseCashDepositFeatures } from "@/lib/console/cash-deposit";
+import { isAllowedQaTestAccount } from "@/lib/console/qa-eligibility-shared";
 import { isSuperAdminRole } from "@/lib/roles";
 import { toast } from "sonner";
 
@@ -52,6 +55,8 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [uplineOpen, setUplineOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [rankOpen, setRankOpen] = useState(false);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
   const [assignUplineOpen, setAssignUplineOpen] = useState(false);
   const [selectedUpline, setSelectedUpline] =
     useState<MemberSearchOption | null>(null);
@@ -74,6 +79,8 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       role: profile?.role,
     }) && !isProtected;
   const canAssignUpline = !member.referredBy;
+  const canUseQaTools =
+    isSuperAdminRole(profile?.role) && isAllowedQaTestAccount(member.email);
 
   const handleAssignUpline = async () => {
     const email = selectedUpline?.email.trim().toLowerCase();
@@ -332,6 +339,22 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <Crown className="mr-2 h-4 w-4" />
             Rank Progress
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setRewardsOpen(true)}
+          >
+            <Package className="mr-2 h-4 w-4" />
+            Rewards Progress
+          </DropdownMenuItem>
+          {canUseQaTools && (
+            <DropdownMenuItem
+              className="cursor-pointer text-amber-400"
+              onClick={() => setQaOpen(true)}
+            >
+              <FlaskConical className="mr-2 h-4 w-4" />
+              QA Test Tools
+            </DropdownMenuItem>
+          )}
           {canCreditDeposit && (
             <>
               <DropdownMenuItem
@@ -399,6 +422,18 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       <MemberRankSheet
         open={rankOpen}
         onOpenChange={setRankOpen}
+        member={member}
+      />
+
+      <MemberRewardsSheet
+        open={rewardsOpen}
+        onOpenChange={setRewardsOpen}
+        member={member}
+      />
+
+      <MemberQaSheet
+        open={qaOpen}
+        onOpenChange={setQaOpen}
         member={member}
       />
 

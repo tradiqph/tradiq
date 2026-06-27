@@ -116,7 +116,7 @@ export function getGroupSales(referralStats: ReferralStats): number {
   ) / 100;
 }
 
-function buildChecklist(
+export function buildChecklist(
   tier: RankTierConfig,
   metrics: RankMetrics
 ): RequirementChecklistItem[] {
@@ -152,7 +152,7 @@ function buildChecklist(
   return items;
 }
 
-function buildProgressBars(
+export function buildProgressBars(
   tier: RankTierConfig,
   metrics: RankMetrics
 ): MetricProgress[] {

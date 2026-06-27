@@ -1,6 +1,7 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { buildDownlineLevels, parseUserRecords } from "@/lib/console/member-network";
 import { normalizeMemberRank } from "@/lib/ranks/config";
+import { isQaOverrideActive, LEADER_QA_METRICS } from "@/lib/console/qa-eligibility-shared";
 import { getRankBadge } from "@/lib/ranks/display";
 import {
   evaluateAllRankProgress,
@@ -31,6 +32,7 @@ export async function loadRankMetrics(
   metrics: RankMetrics;
   currentRank: ReturnType<typeof normalizeMemberRank>;
   rankActivatedAt: string | null;
+  qaOverrideActive: boolean;
 }> {
   const userSnap = await db.collection("users").doc(userId).get();
   if (!userSnap.exists) {
@@ -39,6 +41,17 @@ export async function loadRankMetrics(
 
   const userData = userSnap.data() ?? {};
   const currentRank = normalizeMemberRank(userData.memberRank);
+  const rankActivatedAt = toIsoString(userData.rankActivatedAt);
+  const qaOverrideActive = isQaOverrideActive(userData);
+
+  if (qaOverrideActive) {
+    return {
+      metrics: LEADER_QA_METRICS,
+      currentRank,
+      rankActivatedAt,
+      qaOverrideActive: true,
+    };
+  }
 
   const ownBotsSnap = await userSnap.ref.collection("bots").get();
   const personalInvestment = getPersonalInvestment(
@@ -77,15 +90,14 @@ export async function loadRankMetrics(
   return {
     metrics,
     currentRank,
-    rankActivatedAt: toIsoString(userData.rankActivatedAt),
+    rankActivatedAt,
+    qaOverrideActive: false,
   };
 }
 
 export async function loadRankProgressResponse(db: Firestore, userId: string) {
-  const { metrics, currentRank, rankActivatedAt } = await loadRankMetrics(
-    db,
-    userId
-  );
+  const { metrics, currentRank, rankActivatedAt, qaOverrideActive } =
+    await loadRankMetrics(db, userId);
   const ranks = evaluateAllRankProgress(metrics, currentRank);
 
   return {
@@ -94,5 +106,6 @@ export async function loadRankProgressResponse(db: Firestore, userId: string) {
     rankActivatedAt,
     metrics,
     ranks,
+    qaOverrideActive,
   };
 }

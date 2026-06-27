@@ -4,6 +4,7 @@ import {
   Users,
   TrendingUp,
   Gift,
+  Package,
   Network,
   FileText,
   Headphones,
@@ -31,6 +32,12 @@ export const consoleNavItems: ConsoleNavItem[] = [
     label: "Withdrawals",
     shortLabel: "Withdraw",
     icon: Wallet,
+  },
+  {
+    href: "/console/rewards",
+    label: "Rewards",
+    shortLabel: "Rewards",
+    icon: Package,
   },
   {
     href: "/console/members",

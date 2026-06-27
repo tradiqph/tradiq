@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/api-auth";
 import { getAdminDb } from "@/lib/firebase/admin";
-import { loadRankProgressResponse } from "@/lib/ranks/metrics";
+import { loadRewardProgress } from "@/lib/rewards/claims-server";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function GET(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   }
 
   const limitCheck = checkRateLimit({
-    scope: "rank-progress",
+    scope: "rewards-progress",
     key: decoded.uid,
     limit: 30,
     windowSec: 60,
@@ -36,15 +36,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await loadRankProgressResponse(db, decoded.uid);
-    return NextResponse.json({
-      currentRank: data.currentRank,
-      currentBadge: data.currentBadge,
-      ranks: data.ranks,
-      qaOverrideActive: data.qaOverrideActive,
-    });
+    const data = await loadRewardProgress(db, decoded.uid);
+    return NextResponse.json(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load rank progress";
+    const message =
+      error instanceof Error ? error.message : "Failed to load reward progress";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

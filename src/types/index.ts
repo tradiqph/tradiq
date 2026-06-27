@@ -28,6 +28,60 @@ export interface UserProfile {
   pushNotificationsEnabled?: boolean;
   memberRank?: MemberRank;
   rankActivatedAt?: Timestamp | null;
+  /** Reward tier ids already claimed (tier_500k, tier_1m, tier_2m) */
+  claimedRewardTiers?: string[];
+  /** Super-admin only: marks qa@tradiq.biz as the QA test account */
+  isTestAccount?: boolean;
+  /** Temporary simulated eligibility for QA testing (qa@tradiq.biz only) */
+  qaEligibilityOverride?: {
+    enabled: boolean;
+    enabledBy: string;
+    enabledAt: Timestamp;
+    expiresAt?: Timestamp;
+    target: "leader_and_tier_500k";
+  };
+}
+
+export type RewardClaimStatus =
+  | "pending"
+  | "processing"
+  | "shipped"
+  | "received";
+
+export interface RewardDeliveryAddress {
+  street: string;
+  barangay: string;
+  city: string;
+  postalCode: string;
+}
+
+export interface RewardClaim {
+  referenceNumber: string;
+  userId: string;
+  memberName: string;
+  memberEmail: string;
+  memberPhone: string;
+  rewardType: string;
+  rewardName: string;
+  rewardValue: number;
+  deliveryAddress: RewardDeliveryAddress;
+  status: RewardClaimStatus;
+  courier?: string;
+  trackingNumber?: string;
+  claimedAt: Timestamp;
+  shippedAt?: Timestamp;
+  receivedAt?: Timestamp;
+  createdBy: string;
+  updatedBy?: string;
+  updatedAt?: Timestamp;
+}
+
+export interface RewardClaimStatusHistoryEntry {
+  status: RewardClaimStatus;
+  updatedBy: string;
+  updatedAt: Timestamp;
+  courier?: string;
+  trackingNumber?: string;
 }
 
 export type TransactionType =
