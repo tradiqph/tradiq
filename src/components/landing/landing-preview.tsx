@@ -5,7 +5,7 @@ import { marketingGutter } from "@/lib/marketing-layout";
 const highlights = [
   "Real-time wallet & deposit balance tracking",
   "Smart Wallet Engine with elite bot catalog",
-  "Multi-level referral program (15% / 3% / 2% / 1% / 1%)",
+  "Multi-level referral program (7% / 3% / 2% / 1% / 1%)",
   "QR Ph deposits with Paymongo integration",
   "Secure PIN protection for withdrawals",
   "Mobile-first glassmorphism design",

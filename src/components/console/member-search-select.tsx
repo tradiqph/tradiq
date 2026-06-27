@@ -31,13 +31,16 @@ export function MemberSearchSelect({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MemberSearchOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!value) {
       setQuery("");
       setResults([]);
+      setError(null);
       setOpen(false);
       return;
     }
@@ -48,10 +51,14 @@ export function MemberSearchSelect({
     async (search: string) => {
       if (!user || search.trim().length < 2) {
         setResults([]);
+        setError(null);
         return;
       }
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
+      setError(null);
+
       try {
         const token = await user.getIdToken();
         const params = new URLSearchParams({ search: search.trim() });
@@ -64,13 +71,24 @@ export function MemberSearchSelect({
           members?: MemberSearchOption[];
           error?: string;
         };
+
+        if (requestId !== requestIdRef.current) return;
+
         if (!res.ok) {
           setResults([]);
+          setError(data.error ?? "Search failed");
           return;
         }
+
         setResults(data.members ?? []);
+      } catch (e) {
+        if (requestId !== requestIdRef.current) return;
+        setResults([]);
+        setError(e instanceof Error ? e.message : "Search failed");
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     [user, excludeMemberId]
@@ -79,6 +97,7 @@ export function MemberSearchSelect({
   useEffect(() => {
     if (!open || query.trim().length < 2) {
       setResults([]);
+      setError(null);
       return;
     }
 
@@ -118,8 +137,9 @@ export function MemberSearchSelect({
   };
 
   const showHint = open && query.trim().length < 2;
+  const showError = open && query.trim().length >= 2 && !loading && error;
   const showEmpty =
-    open && query.trim().length >= 2 && !loading && results.length === 0;
+    open && query.trim().length >= 2 && !loading && !error && results.length === 0;
   const showResults = open && query.trim().length >= 2 && results.length > 0;
 
   return (
@@ -137,7 +157,7 @@ export function MemberSearchSelect({
         />
       </div>
 
-      {(showHint || showEmpty || showResults || loading) && open ? (
+      {(showHint || showError || showEmpty || showResults || loading) && open ? (
         <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-white/10 bg-zinc-950 shadow-lg">
           {loading ? (
             <p className="px-3 py-3 text-xs text-zinc-500">Searching…</p>
@@ -145,6 +165,8 @@ export function MemberSearchSelect({
             <p className="px-3 py-3 text-xs text-zinc-500">
               Type at least 2 characters
             </p>
+          ) : showError ? (
+            <p className="px-3 py-3 text-xs text-red-400">{error}</p>
           ) : showEmpty ? (
             <p className="px-3 py-3 text-xs text-zinc-500">No members found</p>
           ) : (

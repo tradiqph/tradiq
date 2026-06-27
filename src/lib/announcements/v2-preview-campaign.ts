@@ -77,8 +77,8 @@ export const V2_PREVIEW_SLIDES: V2PreviewSlide[] = [
   },
 ];
 
-export function isV2PreviewCampaignActive(now: Date = new Date()): boolean {
-  return now.getTime() <= V2_PREVIEW_END_AT.getTime();
+export function isV2PreviewCampaignActive(_now: Date = new Date()): boolean {
+  return false;
 }
 
 export function getV2PreviewTimeRemaining(now: Date = new Date()): number | null {

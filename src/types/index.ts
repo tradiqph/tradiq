@@ -3,6 +3,8 @@ import type { ReferralStats } from "@/lib/referral-stats";
 
 export type UserRole = "super_admin" | "admin" | "user";
 
+export type MemberRank = "member" | "leader" | "director" | "ambassador";
+
 export interface UserProfile {
   email: string;
   displayName: string;
@@ -24,6 +26,8 @@ export interface UserProfile {
   /** Server-stored code for retry until referredBy is linked */
   signupReferralCode?: string;
   pushNotificationsEnabled?: boolean;
+  memberRank?: MemberRank;
+  rankActivatedAt?: Timestamp | null;
 }
 
 export type TransactionType =

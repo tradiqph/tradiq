@@ -1,5 +1,4 @@
 import { Firestore } from "firebase-admin/firestore";
-import { fetchAllUserBots } from "@/lib/console/fetch-bots";
 
 export const MEMBERS_PAGE_SIZE = 20;
 
@@ -90,6 +89,40 @@ export function sortUserDocsByMemberSince(
   });
 }
 
+async function userHasActiveBot(
+  db: Firestore,
+  userId: string
+): Promise<boolean> {
+  const botsSnap = await db
+    .collection("users")
+    .doc(userId)
+    .collection("bots")
+    .where("status", "==", "active")
+    .limit(1)
+    .get();
+  return !botsSnap.empty;
+}
+
+async function countInvestedMembers(
+  db: Firestore,
+  userIds: string[]
+): Promise<number> {
+  if (userIds.length === 0) return 0;
+
+  const batchSize = 50;
+  let invested = 0;
+
+  for (let index = 0; index < userIds.length; index += batchSize) {
+    const batch = userIds.slice(index, index + batchSize);
+    const flags = await Promise.all(
+      batch.map((userId) => userHasActiveBot(db, userId))
+    );
+    invested += flags.filter(Boolean).length;
+  }
+
+  return invested;
+}
+
 export async function getMembersSummary(
   db: Firestore,
   search: string,
@@ -99,13 +132,8 @@ export async function getMembersSummary(
     ? userDocs.filter((doc) => memberMatchesSearch(doc.data(), search))
     : userDocs;
 
-  const filteredIds = new Set(filtered.map((doc) => doc.id));
-  const activeBots = await fetchAllUserBots(db, "active");
-  const investedUserIds = new Set(activeBots.map((bot) => bot.userId));
-
-  const totalInvestedMembers = [...investedUserIds].filter((userId) =>
-    filteredIds.has(userId)
-  ).length;
+  const filteredIds = filtered.map((doc) => doc.id);
+  const totalInvestedMembers = await countInvestedMembers(db, filteredIds);
 
   return {
     totalMembers: filtered.length,

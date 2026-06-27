@@ -9,6 +9,7 @@ exports.processOneBotAccrual = processOneBotAccrual;
 exports.recordAccrualRun = recordAccrualRun;
 exports.runBotAccrualBatch = runBotAccrualBatch;
 const firestore_1 = require("firebase-admin/firestore");
+const leadership_bonus_1 = require("./leadership-bonus");
 exports.DAILY_BOT_RATE = 0.03;
 exports.BOT_TERM_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -139,11 +140,23 @@ async function processOneBotAccrual(db, botDocRef, now) {
     if (!credited) {
         return { processed: false, botId, userId, reason: "transaction_skipped" };
     }
+    const subscribedAt = toDate(preBot.subscribedAt);
+    if (subscribedAt) {
+        await (0, leadership_bonus_1.applyLeadershipBonus)({
+            db,
+            botOwnerUid: userId,
+            botId,
+            botAmount: amount,
+            botSubscribedAt: subscribedAt,
+            accrualDay: newDaysAccrued,
+        });
+    }
     return {
         processed: true,
         botId,
         userId,
         earning,
+        principalAmount: isComplete ? amount : undefined,
         newDaysAccrued,
         completed: isComplete,
     };

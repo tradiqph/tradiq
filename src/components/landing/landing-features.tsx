@@ -21,8 +21,8 @@ const features = [
     image: "/assets/landing-feature-referral.png",
     title: "Referral Rewards",
     description:
-      "Invite friends and earn up to 15% commission on their bot subscriptions across 5 referral levels.",
-    highlight: "15% L1",
+      "Invite friends and earn up to 7% commission on their bot subscriptions across 5 referral levels.",
+    highlight: "7% L1",
   },
 ];
 

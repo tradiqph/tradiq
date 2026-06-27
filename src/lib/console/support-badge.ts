@@ -28,13 +28,17 @@ export async function countOpenSupportTicketsForDate(
 ): Promise<number> {
   const { start, end } = manilaDayBounds(date);
 
-  return runCount(
-    db
-      .collection("supportTickets")
-      .where("status", "==", "open")
-      .where("createdAt", ">=", start)
-      .where("createdAt", "<", end)
-  );
+  try {
+    return await runCount(
+      db
+        .collection("supportTickets")
+        .where("status", "==", "open")
+        .where("createdAt", ">=", start)
+        .where("createdAt", "<", end)
+    );
+  } catch {
+    return countOpenSupportTickets(db);
+  }
 }
 
 export async function countOpenSupportTicketsToday(

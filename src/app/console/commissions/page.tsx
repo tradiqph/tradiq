@@ -131,7 +131,7 @@ export default function ConsoleCommissionsPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Commissions</h1>
         <p className="text-sm text-zinc-500">
-          One-time upline payouts on bot subscriptions (15% · 3% · 2% · 1% · 1%)
+          One-time upline payouts on bot subscriptions (7% · 3% · 2% · 1% · 1%)
         </p>
       </div>
 

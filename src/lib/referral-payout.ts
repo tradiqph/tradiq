@@ -74,7 +74,8 @@ async function claimCommissionEvent(
 /**
  * One-time commission when a downline subscribes to a bot.
  * Does NOT run on daily bot earnings, deposits, or principal returns —
- * those belong entirely to the investor.
+ * those belong entirely to the investor. Not re-run on rank activation;
+ * idempotent per bot via referralCommissionEvents when botId is provided.
  */
 export async function applyReferralCommissions(
   db: Firestore,

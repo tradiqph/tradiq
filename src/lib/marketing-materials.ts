@@ -19,7 +19,7 @@ export const MARKETING_MATERIALS: MarketingMaterial[] = [
     id: "referral-commission",
     title: "Referral & Commission",
     description:
-      "5-level commission tiers with earnings example — referral bot subscription × rate (e.g. ₱30,000 × 15% = ₱4,500).",
+      "5-level commission tiers with earnings example — referral bot subscription × rate (e.g. ₱30,000 × 7% = ₱2,100).",
     filename: "tradiq-referral-commission.png",
     href: "/assets/marketing/referral-commission.png",
   },

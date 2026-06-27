@@ -25,6 +25,8 @@ User profile and balances. Created on first sign-in.
 | securityPinHash | string \| null | bcrypt |
 | role | string | `user` or `admin` |
 | referralStats | map | `{ level1, level2to5, totalEarned }` |
+| memberRank | string | `member`, `leader`, `director`, or `ambassador` (default `member`) |
+| rankActivatedAt | timestamp \| null | Set when user manually activates a rank; leadership bonus applies to bot accruals scheduled on/after this time (including pre-existing L1 bots), not backfilled for earlier days |
 
 #### Subcollections
 - `transactions/{id}` — deposit, bot_subscribe, earning, referral, withdrawal
@@ -42,3 +44,6 @@ Admin cashout queue.
 
 ### `appConfig/platform`
 Platform-wide settings (rates, presets).
+
+### `leadershipBonusEvents/{eventId}`
+Server-only idempotency ledger for daily L1 leadership bonus payouts. Key: `{uplineUid}_{botId}_{accrualDay}`.

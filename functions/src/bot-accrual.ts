@@ -4,6 +4,7 @@ import {
   DocumentReference,
   Timestamp,
 } from "firebase-admin/firestore";
+import { applyLeadershipBonus } from "./leadership-bonus";
 
 export const DAILY_BOT_RATE = 0.03;
 export const BOT_TERM_DAYS = 30;
@@ -173,6 +174,18 @@ export async function processOneBotAccrual(
 
   if (!credited) {
     return { processed: false, botId, userId, reason: "transaction_skipped" };
+  }
+
+  const subscribedAt = toDate(preBot.subscribedAt);
+  if (subscribedAt) {
+    await applyLeadershipBonus({
+      db,
+      botOwnerUid: userId,
+      botId,
+      botAmount: amount,
+      botSubscribedAt: subscribedAt,
+      accrualDay: newDaysAccrued,
+    });
   }
 
   return {

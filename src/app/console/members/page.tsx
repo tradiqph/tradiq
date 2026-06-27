@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConsoleError } from "@/components/console/console-error";
 import { ConsoleLoader } from "@/components/console/console-loader";
 import { DataTable } from "@/components/console/data-table";
@@ -13,6 +13,7 @@ import { useConsoleFetch } from "@/hooks/use-console-fetch";
 import { formatPeso } from "@/lib/finance";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Member {
   id: string;
@@ -49,6 +50,7 @@ interface MembersFinancialSummary {
 }
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 type MemberSort = "email" | "newest";
 
@@ -73,16 +75,24 @@ export default function ConsoleMembersPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [botsMember, setBotsMember] = useState<Member | null>(null);
+  const requestIdRef = useRef(0);
+  const debounceTimerRef = useRef<number | null>(null);
 
   const { data: financialSummary } = useConsoleFetch<MembersFinancialSummary>(
     "/api/console/stats"
   );
 
   const fetchMembers = useCallback(
-    async (cursor: string | null) => {
+    async (cursor: string | null, options?: { clearResults?: boolean }) => {
       if (!user) return;
+
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       setError(null);
+      if (options?.clearResults) {
+        setMembers([]);
+      }
+
       try {
         const token = await user.getIdToken();
         const params = new URLSearchParams({
@@ -96,6 +106,9 @@ export default function ConsoleMembersPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = (await res.json()) as MembersResponse & { error?: string };
+
+        if (requestId !== requestIdRef.current) return;
+
         if (!res.ok) {
           setError(data.error ?? "Failed to load members");
           return;
@@ -105,21 +118,45 @@ export default function ConsoleMembersPage() {
         setSummary(data.summary ?? null);
         setHasMore(Boolean(data.hasMore));
         setNextCursor(data.nextCursor ?? null);
+      } catch (e) {
+        if (requestId !== requestIdRef.current) return;
+        setError(e instanceof Error ? e.message : "Failed to load members");
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     [user, query, sort]
   );
 
   useEffect(() => {
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = window.setTimeout(() => {
+      setQuery(search.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [search]);
+
+  useEffect(() => {
     setPage(1);
     setCursors([null]);
-    void fetchMembers(null);
+    void fetchMembers(null, { clearResults: true });
   }, [fetchMembers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
     setQuery(search.trim());
   };
 
@@ -213,149 +250,157 @@ export default function ConsoleMembersPage() {
       ) : loading && members.length === 0 ? (
         <ConsoleLoader variant="section" label="Loading members" />
       ) : (
-        <div className="space-y-3">
-          <DataTable
-            data={members}
-            rowKey={(m) => m.id}
-            emptyMessage="No members found"
-            columns={[
-              {
-                key: "name",
-                header: "Member",
-                primary: true,
-                cell: (m) => (
-                  <div>
-                    <p className="text-white">{m.displayName || "—"}</p>
-                    <p className="text-xs text-zinc-500">{m.email}</p>
-                  </div>
-                ),
-              },
-              {
-                key: "upline",
-                header: "Upline",
-                cell: (m) =>
-                  m.referredBy && (m.uplineEmail || m.uplineDisplayName) ? (
-                    <div>
-                      <p className="text-white">
-                        {m.uplineDisplayName || m.uplineEmail}
-                      </p>
-                      {m.uplineDisplayName && m.uplineEmail ? (
-                        <p className="text-xs text-zinc-500">{m.uplineEmail}</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-zinc-600">no upline</span>
-                  ),
-              },
-              {
-                key: "role",
-                header: "Role",
-                cell: (m) => (
-                  <span className="text-xs capitalize text-zinc-400">
-                    {m.role}
-                  </span>
-                ),
-              },
-              {
-                key: "wallet",
-                header: "Wallet",
-                cell: (m) => <PesoAmount amount={m.walletBalance} />,
-              },
-              {
-                key: "deposited",
-                header: "Total deposited",
-                cell: (m) =>
-                  m.totalDeposited > 0 ? (
-                    <PesoAmount amount={m.totalDeposited} />
-                  ) : (
-                    <span className="text-zinc-600">—</span>
-                  ),
-              },
-              {
-                key: "botInvested",
-                header: "Bot invested",
-                cell: (m) =>
-                  m.activeBotPrincipal > 0 ? (
-                    <div>
-                      <PesoAmount amount={m.activeBotPrincipal} gold />
-                      {m.activeBots > 1 && (
-                        <p className="text-[10px] text-zinc-500">
-                          {m.activeBots} active bots
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-zinc-600">—</span>
-                  ),
-              },
-              {
-                key: "bots",
-                header: "Active bots",
-                cell: (m) =>
-                  m.activeBots > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setBotsMember(m)}
-                      className="cursor-pointer font-semibold text-amber-400 hover:text-amber-300"
-                    >
-                      {m.activeBots}
-                    </button>
-                  ) : (
-                    <span className="text-zinc-400">0</span>
-                  ),
-              },
-              {
-                key: "since",
-                header: "Joined",
-                cell: (m) =>
-                  m.memberSince
-                    ? format(new Date(m.memberSince), "MMM d, yyyy")
-                    : "—",
-              },
-              {
-                key: "actions",
-                header: "",
-                hideOnMobile: true,
-                cell: (m) => (
-                  <MemberActionsMenu
-                    member={{
-                      id: m.id,
-                      email: m.email,
-                      displayName: m.displayName,
-                      role: m.role,
-                      referredBy: m.referredBy,
-                    }}
-                    onUpdated={() => void refetch()}
-                  />
-                ),
-              },
-            ]}
-          />
+        <div className="relative space-y-3">
+          {loading ? (
+            <div className="absolute inset-0 z-10 flex items-start justify-center rounded-xl bg-zinc-950/70 pt-16">
+              <ConsoleLoader variant="section" label="Searching members" />
+            </div>
+          ) : null}
 
-          <div className="flex flex-col gap-2 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-zinc-500">
-              {members.length === 0
-                ? "No members on this page"
-                : `Showing ${pageStart}–${pageEnd} of ${summary?.totalMembers ?? members.length}`}
-            </p>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                disabled={page <= 1 || loading}
-                onClick={goPrev}
-                className="cursor-pointer text-xs text-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-zinc-500">Page {page}</span>
-              <button
-                type="button"
-                disabled={!hasMore || loading}
-                onClick={goNext}
-                className="cursor-pointer text-xs text-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
+          <div className={cn(loading && "pointer-events-none opacity-40")}>
+            <DataTable
+              data={members}
+              rowKey={(m) => m.id}
+              emptyMessage="No members found"
+              columns={[
+                {
+                  key: "name",
+                  header: "Member",
+                  primary: true,
+                  cell: (m) => (
+                    <div>
+                      <p className="text-white">{m.displayName || "—"}</p>
+                      <p className="text-xs text-zinc-500">{m.email}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: "upline",
+                  header: "Upline",
+                  cell: (m) =>
+                    m.referredBy && (m.uplineEmail || m.uplineDisplayName) ? (
+                      <div>
+                        <p className="text-white">
+                          {m.uplineDisplayName || m.uplineEmail}
+                        </p>
+                        {m.uplineDisplayName && m.uplineEmail ? (
+                          <p className="text-xs text-zinc-500">{m.uplineEmail}</p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-600">no upline</span>
+                    ),
+                },
+                {
+                  key: "role",
+                  header: "Role",
+                  cell: (m) => (
+                    <span className="text-xs capitalize text-zinc-400">
+                      {m.role}
+                    </span>
+                  ),
+                },
+                {
+                  key: "wallet",
+                  header: "Wallet",
+                  cell: (m) => <PesoAmount amount={m.walletBalance} />,
+                },
+                {
+                  key: "deposited",
+                  header: "Total deposited",
+                  cell: (m) =>
+                    m.totalDeposited > 0 ? (
+                      <PesoAmount amount={m.totalDeposited} />
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    ),
+                },
+                {
+                  key: "botInvested",
+                  header: "Bot invested",
+                  cell: (m) =>
+                    m.activeBotPrincipal > 0 ? (
+                      <div>
+                        <PesoAmount amount={m.activeBotPrincipal} gold />
+                        {m.activeBots > 1 && (
+                          <p className="text-[10px] text-zinc-500">
+                            {m.activeBots} active bots
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    ),
+                },
+                {
+                  key: "bots",
+                  header: "Active bots",
+                  cell: (m) =>
+                    m.activeBots > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setBotsMember(m)}
+                        className="cursor-pointer font-semibold text-amber-400 hover:text-amber-300"
+                      >
+                        {m.activeBots}
+                      </button>
+                    ) : (
+                      <span className="text-zinc-400">0</span>
+                    ),
+                },
+                {
+                  key: "since",
+                  header: "Joined",
+                  cell: (m) =>
+                    m.memberSince
+                      ? format(new Date(m.memberSince), "MMM d, yyyy")
+                      : "—",
+                },
+                {
+                  key: "actions",
+                  header: "",
+                  hideOnMobile: true,
+                  cell: (m) => (
+                    <MemberActionsMenu
+                      member={{
+                        id: m.id,
+                        email: m.email,
+                        displayName: m.displayName,
+                        role: m.role,
+                        referredBy: m.referredBy,
+                      }}
+                      onUpdated={() => void refetch()}
+                    />
+                  ),
+                },
+              ]}
+            />
+
+            <div className="flex flex-col gap-2 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-zinc-500">
+                {members.length === 0
+                  ? "No members on this page"
+                  : `Showing ${pageStart}–${pageEnd} of ${summary?.totalMembers ?? members.length}`}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  disabled={page <= 1 || loading}
+                  onClick={goPrev}
+                  className="cursor-pointer text-xs text-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-zinc-500">Page {page}</span>
+                <button
+                  type="button"
+                  disabled={!hasMore || loading}
+                  onClick={goNext}
+                  className="cursor-pointer text-xs text-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         </div>

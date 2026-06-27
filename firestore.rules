@@ -64,6 +64,8 @@ service cloud.firestore {
         'pinFailedAttempts',
         'pinLockedUntil',
         'email',
+        'memberRank',
+        'rankActivatedAt',
       ];
     }
 
@@ -211,6 +213,10 @@ service cloud.firestore {
     }
 
     match /referralCommissionEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /leadershipBonusEvents/{eventId} {
       allow read, write: if false;
     }
   }

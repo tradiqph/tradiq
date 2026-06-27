@@ -17,6 +17,7 @@ import {
   Terminal,
   ImageIcon,
   Volume2,
+  Crown,
 } from "lucide-react";
 import { SecuritySheet } from "@/components/layout/security-sheet";
 import { SupportSheet } from "@/components/account/support-sheet";
@@ -55,6 +56,8 @@ import {
   setNotificationSoundEnabled,
 } from "@/lib/notification-sound";
 import { cn } from "@/lib/utils";
+import { getRankBadge } from "@/lib/ranks/display";
+import { normalizeMemberRank } from "@/lib/ranks/config";
 import type { WithdrawalAccountFormData } from "@/components/account/add-withdrawal-account-dialog";
 
 function SettingsRow({
@@ -504,6 +507,18 @@ function AccountContent() {
               <p className="text-xs text-zinc-500">{memberSince}</p>
             </div>
           </div>
+        </div>
+
+        <div className="surface-flat overflow-hidden">
+          <p className="px-4 pt-3 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+            Rank Promotion
+          </p>
+          <SettingsRow
+            icon={Crown}
+            title="👑 Rank Promotion"
+            subtitle={getRankBadge(normalizeMemberRank(profile?.memberRank))}
+            href="/account/rank-promotion"
+          />
         </div>
 
         <div className="surface-flat overflow-hidden">

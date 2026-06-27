@@ -9,6 +9,7 @@ const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
 const deposit_fulfillment_1 = require("./deposit-fulfillment");
 const bot_accrual_1 = require("./bot-accrual");
+const push_1 = require("./push");
 (0, app_1.initializeApp)();
 const PAYMONGO_API = "https://api.paymongo.com/v1";
 async function getPaymentIntentStatus(intentId, secretKey) {
@@ -104,6 +105,19 @@ exports.dailyBotEarnings = (0, scheduler_1.onSchedule)({
     const db = (0, firestore_1.getFirestore)();
     const summary = await (0, bot_accrual_1.runBotAccrualBatch)(db);
     await (0, bot_accrual_1.recordAccrualRun)(db, summary, "scheduler");
+    for (const result of summary.results) {
+        if (!result.processed || !result.userId || result.earning == null)
+            continue;
+        if (result.completed) {
+            await (0, push_1.sendUserPush)(db, result.userId, (0, push_1.finalEarningPushMessage)(result.earning));
+            if (result.principalAmount != null) {
+                await (0, push_1.sendUserPush)(db, result.userId, (0, push_1.principalReturnPushMessage)(result.principalAmount));
+            }
+        }
+        else {
+            await (0, push_1.sendUserPush)(db, result.userId, (0, push_1.dailyEarningPushMessage)(result.earning));
+        }
+    }
     console.log(`[dailyBotEarnings] due=${summary.dueCount} processed=${summary.processedCount}`);
 });
 //# sourceMappingURL=index.js.map

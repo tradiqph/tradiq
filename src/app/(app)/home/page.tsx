@@ -6,6 +6,7 @@ import { V2PreviewAnnouncementFab } from "@/components/announcements/v2-preview-
 import { ActivePromoFab } from "@/components/announcements/active-promo-fab";
 import { ActivePromoModal } from "@/components/announcements/active-promo-modal";
 import { WalletCarousel } from "@/components/wallet/wallet-carousel";
+import { CurrentRankWidget } from "@/components/wallet/current-rank-widget";
 import { QuickActions } from "@/components/wallet/quick-actions";
 import { RecentTransactions } from "@/components/wallet/recent-transactions";
 import { DepositModal } from "@/components/modals/deposit-modal";
@@ -42,6 +43,7 @@ export default function DashboardPage() {
         onDeposit={() => setDepositOpen(true)}
         onWithdraw={() => setWithdrawOpen(true)}
       />
+      <CurrentRankWidget />
       <WalletCarousel profile={profile} />
       {!loading && (
         <RecentTransactions

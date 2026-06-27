@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpFromDot, Banknote, ClipboardList, Gift, Key, Lock, MoreHorizontal, Trash2, UserPlus, Users } from "lucide-react";
+import { ArrowUpFromDot, Banknote, ClipboardList, Crown, Gift, Key, Lock, MoreHorizontal, Trash2, UserPlus, Users } from "lucide-react";
 import { MemberAuditSheet } from "@/components/console/member-audit-sheet";
 import { MemberNetworkSheet } from "@/components/console/member-network-sheet";
 import {
@@ -9,6 +9,7 @@ import {
   type MemberSearchOption,
 } from "@/components/console/member-search-select";
 import { MemberUplineSheet } from "@/components/console/member-upline-sheet";
+import { MemberRankSheet } from "@/components/console/member-rank-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,7 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
   const [networkOpen, setNetworkOpen] = useState(false);
   const [uplineOpen, setUplineOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [rankOpen, setRankOpen] = useState(false);
   const [assignUplineOpen, setAssignUplineOpen] = useState(false);
   const [selectedUpline, setSelectedUpline] =
     useState<MemberSearchOption | null>(null);
@@ -323,6 +325,13 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
             <ClipboardList className="mr-2 h-4 w-4" />
             Audit Account
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setRankOpen(true)}
+          >
+            <Crown className="mr-2 h-4 w-4" />
+            Rank Progress
+          </DropdownMenuItem>
           {canCreditDeposit && (
             <>
               <DropdownMenuItem
@@ -384,6 +393,12 @@ export function MemberActionsMenu({ member, onUpdated }: MemberActionsMenuProps)
       <MemberAuditSheet
         open={auditOpen}
         onOpenChange={setAuditOpen}
+        member={member}
+      />
+
+      <MemberRankSheet
+        open={rankOpen}
+        onOpenChange={setRankOpen}
         member={member}
       />
 
