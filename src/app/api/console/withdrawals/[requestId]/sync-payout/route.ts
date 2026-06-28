@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/console/require-super-admin";
+import { isAdminAcknowledgedSuccessfulPayout } from "@/lib/console/payout-attempts-shared";
 import {
+  resolveWithdrawalTransferIdToSync,
   syncWithdrawalPayoutForRequest,
   WithdrawalPayoutSyncError,
 } from "@/lib/console/withdrawal-transfer-webhook";
@@ -21,6 +23,23 @@ export async function POST(
   }
 
   try {
+    const doc = await auth.db.collection("withdrawalRequests").doc(requestId).get();
+    if (!doc.exists) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    const data = doc.data()!;
+    if (isAdminAcknowledgedSuccessfulPayout(data)) {
+      const transferId = resolveWithdrawalTransferIdToSync(data) ?? "";
+      return NextResponse.json({
+        success: true,
+        transferId,
+        status: "succeeded",
+        message: "Manually acknowledged — sync skipped",
+        updated: false,
+      });
+    }
+
     const result = await syncWithdrawalPayoutForRequest(auth.db, requestId);
 
     console.info(

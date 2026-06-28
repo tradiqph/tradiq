@@ -14,12 +14,14 @@ export interface WithdrawalListItem {
     bankName?: string;
   };
   createdAt?: { seconds: number };
+  reviewedAt?: { seconds: number };
   paidAt?: { seconds: number };
   payoutFailedAt?: { seconds: number };
   payoutFailureAcknowledgedAt?: { seconds: number };
   paymongoTransferStatus?: string;
   payError?: string;
   status?: string;
+  rejectionReason?: string;
   payoutAttempts?: SerializedPayoutAttempt[];
   failedAttemptsOnDate?: number;
   unresolvedFailure?: boolean;

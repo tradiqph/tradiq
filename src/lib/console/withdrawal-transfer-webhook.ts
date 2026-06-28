@@ -8,6 +8,7 @@ import {
   upsertPayoutAttemptFromSync,
 } from "@/lib/console/payout-attempts";
 import {
+  isAdminAcknowledgedSuccessfulPayout,
   isRealPaymongoTransferId,
   readTimestampSeconds,
 } from "@/lib/console/payout-attempts-shared";
@@ -93,6 +94,10 @@ export async function syncWithdrawalTransferStatus(
   if (!doc) return false;
 
   const data = doc.data();
+  if (isAdminAcknowledgedSuccessfulPayout(data)) {
+    return true;
+  }
+
   const { payoutAttempts, payoutTransferIds } = upsertPayoutAttemptFromSync(
     data as Record<string, unknown>,
     transferId,
@@ -145,6 +150,10 @@ function collectStaleTransferIds(
   data: FirebaseFirestore.DocumentData,
   cutoffMs: number
 ): string[] {
+  if (isAdminAcknowledgedSuccessfulPayout(data)) {
+    return [];
+  }
+
   const ids = new Set<string>();
   const attempts = normalizePayoutAttempts(data.payoutAttempts);
 

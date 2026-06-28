@@ -22,7 +22,13 @@ import { toast } from "sonner";
 import { Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabStatus = "pending" | "failed" | "approved" | "rejected" | "all";
+type TabStatus =
+  | "pending"
+  | "failed"
+  | "refunded"
+  | "approved"
+  | "rejected"
+  | "all";
 
 interface WithdrawalRequestItem {
   id: string;
@@ -31,6 +37,7 @@ interface WithdrawalRequestItem {
   processingFee?: number;
   netPayout?: number;
   status: string;
+  rejectionReason?: string;
   accountSnapshot: {
     label: string;
     accountType: string;
@@ -62,8 +69,9 @@ interface WithdrawalRequestItem {
 
 const tabs: { key: TabStatus; label: string }[] = [
   { key: "pending", label: "Pending" },
-  { key: "failed", label: "Failed" },
   { key: "approved", label: "Approved" },
+  { key: "failed", label: "Failed" },
+  { key: "refunded", label: "Refunded" },
   { key: "rejected", label: "Rejected" },
   { key: "all", label: "All" },
 ];
@@ -113,7 +121,10 @@ export default function ConsoleWithdrawalsPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const fetchRequests = useCallback(async (options?: { background?: boolean }) => {
+  const fetchRequests = useCallback(async (options?: {
+    background?: boolean;
+    status?: TabStatus;
+  }) => {
     if (!user) return;
     if (!options?.background) {
       setFetching(true);
@@ -121,7 +132,7 @@ export default function ConsoleWithdrawalsPage() {
     setFetchError(null);
     try {
       const params = new URLSearchParams({
-        status: tab,
+        status: options?.status ?? tab,
         date: selectedDate,
       });
       if (search.trim()) params.set("search", search.trim());
@@ -212,6 +223,9 @@ export default function ConsoleWithdrawalsPage() {
         if (action === "refund") {
           toast.success("Balance refunded to member");
           setRefundConfirm(null);
+          setTab("refunded");
+          await fetchRequests({ status: "refunded" });
+          return;
         } else if (action === "moveToApproved") {
           toast.success("Withdrawal moved to Approved");
         } else if (action === "acknowledgePayout") {
@@ -309,7 +323,11 @@ export default function ConsoleWithdrawalsPage() {
       ? "withdrawal requests"
       : tab === "failed"
         ? "failed payouts"
-        : `${tab} withdrawal requests`;
+        : tab === "refunded"
+          ? "refunded payouts"
+          : `${tab} withdrawal requests`;
+
+  const usesPayoutFailedDate = tab === "failed" || tab === "refunded";
 
   return (
     <div className="space-y-6">
@@ -350,7 +368,7 @@ export default function ConsoleWithdrawalsPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
-            {tab === "failed" ? "Payout failed date" : "Date"}
+            {usesPayoutFailedDate ? "Payout failed date" : "Date"}
           </label>
           <Input
             type="date"
@@ -422,6 +440,11 @@ export default function ConsoleWithdrawalsPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-white">{req.userEmail}</span>
+                      {tab === "refunded" && (
+                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                          Refunded
+                        </span>
+                      )}
                       {tab === "failed" && (
                         <span
                           className={cn(
@@ -438,9 +461,12 @@ export default function ConsoleWithdrawalsPage() {
                     <p className="text-xs text-zinc-500 capitalize">
                       {tab === "failed"
                         ? `Withdrawal ${req.status}`
-                        : req.status}
+                        : tab === "refunded"
+                          ? "Balance refunded to member"
+                          : req.status}
                     </p>
-                    {tab === "failed" && failedAttemptsToday > 0 && (
+                    {(tab === "failed" || tab === "refunded") &&
+                      failedAttemptsToday > 0 && (
                       <p className="mt-1 text-xs text-red-400">
                         {failedAttemptsToday} failed payout attempt
                         {failedAttemptsToday === 1 ? "" : "s"} on this date
@@ -511,7 +537,7 @@ export default function ConsoleWithdrawalsPage() {
                   {req.reviewedAt &&
                     ` · Reviewed: ${formatTimestamp(req.reviewedAt)}`}
                 </p>
-                {tab === "failed" &&
+                {(tab === "failed" || tab === "refunded") &&
                   (req.payoutAttempts?.filter((a) => a.status === "failed")
                     .length ?? 0) > 0 && (
                     <div className="mt-2 space-y-1 rounded-lg border border-red-500/10 bg-red-500/5 p-2">

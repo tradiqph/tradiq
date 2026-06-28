@@ -6,6 +6,7 @@ import {
   enrichWithdrawalForApi,
   getMostRecentFailedAttemptSeconds,
   withdrawalHasFailedAttemptOnDate,
+  withdrawalHasRefundedPayoutOnDate,
 } from "@/lib/console/payout-attempts";
 import { syncWithdrawalTransfersForDocs, withdrawalDocNeedsPayoutSync } from "@/lib/console/withdrawal-transfer-webhook";
 import {
@@ -76,6 +77,33 @@ async function fetchFailedWithdrawals(
     );
 }
 
+async function fetchRefundedWithdrawals(
+  db: FirebaseFirestore.Firestore,
+  dateKey: string
+): Promise<SerializedWithdrawal[]> {
+  const snap = await db
+    .collection("withdrawalRequests")
+    .orderBy("createdAt", "desc")
+    .limit(500)
+    .get();
+
+  return snap.docs
+    .map((d) =>
+      enrichWithdrawalForApi(
+        d.id,
+        d.data() as Record<string, unknown>,
+        dateKey
+      ) as unknown as SerializedWithdrawal
+    )
+    .filter((request) => withdrawalHasRefundedPayoutOnDate(request, dateKey))
+    .sort(
+      (a, b) =>
+        getMostRecentFailedAttemptSeconds(b.payoutAttempts ?? [], dateKey) -
+        getMostRecentFailedAttemptSeconds(a.payoutAttempts ?? [], dateKey) ||
+        (b.reviewedAt?.seconds ?? 0) - (a.reviewedAt?.seconds ?? 0)
+    );
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdmin(request);
   if (!auth.ok) {
@@ -93,6 +121,8 @@ export async function GET(request: NextRequest) {
 
   if (status === "failed") {
     requests = await fetchFailedWithdrawals(auth.db, date);
+  } else if (status === "refunded") {
+    requests = await fetchRefundedWithdrawals(auth.db, date);
   } else {
     let query = auth.db.collection("withdrawalRequests") as FirebaseFirestore.Query;
     if (status !== "all") {
@@ -129,6 +159,12 @@ export async function GET(request: NextRequest) {
 
     if (status === "pending") {
       requests = requests.filter((request) => !isActionablePayoutFailure(request));
+    }
+
+    if (status === "rejected") {
+      requests = requests.filter(
+        (request) => request.rejectionReason !== "payout_failed"
+      );
     }
   }
 

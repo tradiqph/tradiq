@@ -82,6 +82,62 @@ export function isPayoutFailureAcknowledged(data: {
   return readTimestampSeconds(data.payoutFailureAcknowledgedAt) != null;
 }
 
+export function isAdminAcknowledgedSuccessfulPayout(data: {
+  payoutFailureAcknowledgedAt?: unknown;
+  paymongoTransferStatus?: string;
+}): boolean {
+  return (
+    isPayoutFailureAcknowledged(data) &&
+    data.paymongoTransferStatus === "succeeded"
+  );
+}
+
+export function isRefundedPayoutWithdrawal(data: {
+  status?: string;
+  rejectionReason?: string;
+}): boolean {
+  return (
+    data.status === "rejected" && data.rejectionReason === "payout_failed"
+  );
+}
+
+function manilaDateKeyFromSeconds(seconds: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+  }).format(new Date(seconds * 1000));
+}
+
+export function withdrawalHasRefundedPayoutOnDate(
+  data: {
+    status?: string;
+    rejectionReason?: string;
+    payoutAttempts?: SerializedPayoutAttempt[];
+    reviewedAt?: { seconds: number };
+    payoutFailedAt?: { seconds: number };
+    paidAt?: { seconds: number };
+    createdAt?: { seconds: number };
+  },
+  dateKey: string
+): boolean {
+  if (!isRefundedPayoutWithdrawal(data)) return false;
+
+  const failedFromLedger = getFailedAttemptsForDate(
+    data.payoutAttempts ?? [],
+    dateKey
+  );
+  if (failedFromLedger.length > 0) return true;
+
+  const refundSeconds = data.reviewedAt?.seconds ?? null;
+  if (
+    refundSeconds != null &&
+    manilaDateKeyFromSeconds(refundSeconds) === dateKey
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function hasUnresolvedPayoutFailure(data: {
   status?: string;
   paymongoTransferStatus?: PaymongoTransferStatus;
@@ -119,6 +175,7 @@ export function hasUnresolvedPayoutFailure(data: {
 export function withdrawalHasFailedAttemptOnDate(
   data: {
     status?: string;
+    rejectionReason?: string;
     paymongoTransferStatus?: PaymongoTransferStatus | string;
     payError?: string;
     payoutFailedAt?: { seconds: number };
@@ -129,8 +186,10 @@ export function withdrawalHasFailedAttemptOnDate(
   },
   dateKey: string
 ): boolean {
+  if (isRefundedPayoutWithdrawal(data)) return false;
   if (hasSucceededPayoutAttempt(data.payoutAttempts)) return false;
   if (data.paymongoTransferStatus === "succeeded") return false;
+  if (isAdminAcknowledgedSuccessfulPayout(data)) return false;
   if (
     isPayoutFailureAcknowledged(data) &&
     data.paymongoTransferStatus !== "failed" &&
