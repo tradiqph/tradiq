@@ -390,8 +390,7 @@ export default function ConsoleWithdrawalsPage() {
             const showPendingActions =
               req.status === "pending" && tab === "pending" && !payoutFailed;
             const showRecoveryActions =
-              req.paymongoTransferStatus === "failed" &&
-              (req.status === "pending" || req.status === "approved") &&
+              isPayoutFailed(req) &&
               (tab === "failed" || tab === "approved");
             const showRefreshStatus =
               req.paymongoTransferStatus === "pending" &&
@@ -404,8 +403,7 @@ export default function ConsoleWithdrawalsPage() {
             const showFailedTabApproveApproved =
               tab === "failed" &&
               req.status === "approved" &&
-              req.unresolvedFailure === true &&
-              !req.payoutFailureAcknowledgedAt;
+              req.unresolvedFailure === true;
             const showFailedTabApprove =
               showFailedTabApprovePending || showFailedTabApproveApproved;
             const failedAttemptsToday = req.failedAttemptsOnDate ?? 0;
@@ -763,9 +761,10 @@ export default function ConsoleWithdrawalsPage() {
                 and the request will be closed as rejected.
               </p>
               {refundConfirm.payError && (
-                <p className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
-                  {refundConfirm.payError}
-                </p>
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm">
+                  <p className="font-medium text-red-300">PayMongo payout error</p>
+                  <p className="mt-1 text-red-200">{refundConfirm.payError}</p>
+                </div>
               )}
               <div className="rounded-lg border border-white/10 bg-black/40 p-3 text-sm">
                 <p className="text-zinc-400">Member</p>

@@ -1,7 +1,7 @@
 import { FieldValue, Firestore } from "firebase-admin/firestore";
-import {
-  isActionablePayoutFailure,
-} from "@/lib/console/withdrawals-list";
+import { toSerializedPayoutAttempts } from "@/lib/console/payout-attempts";
+import { hasUnresolvedPayoutFailure } from "@/lib/console/payout-attempts-shared";
+import type { PaymongoTransferStatus } from "@/types";
 
 export class WithdrawalRefundError extends Error {
   constructor(
@@ -19,8 +19,20 @@ export function canRefundFailedPayout(data: {
   status?: string;
   paymongoTransferStatus?: string;
   payError?: string;
+  payoutAttempts?: unknown;
+  payoutFailureAcknowledgedAt?: unknown;
 }): boolean {
-  return isActionablePayoutFailure(data);
+  const payoutAttempts = toSerializedPayoutAttempts(data.payoutAttempts);
+
+  return hasUnresolvedPayoutFailure({
+    status: data.status,
+    paymongoTransferStatus: data.paymongoTransferStatus as
+      | PaymongoTransferStatus
+      | undefined,
+    payError: data.payError,
+    payoutAttempts,
+    payoutFailureAcknowledgedAt: data.payoutFailureAcknowledgedAt,
+  });
 }
 
 export async function findWithdrawalTransaction(
@@ -86,7 +98,10 @@ export async function refundWithdrawalBalance(
   }
 
   const userId = reqData.userId as string;
-  const amount = reqData.amount as number;
+  const amount = Number(reqData.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new WithdrawalRefundError("Invalid withdrawal amount", "bad_request");
+  }
   const wasApproved = requestStatus === "approved";
 
   await db.runTransaction(async (tx) => {
@@ -108,6 +123,13 @@ export async function refundWithdrawalBalance(
       reviewedAt: FieldValue.serverTimestamp(),
       reviewedBy: params.adminUid,
       rejectionReason: params.rejectionReason,
+      paymongoTransferStatus: FieldValue.delete(),
+      paymongoTransferId: FieldValue.delete(),
+      payError: FieldValue.delete(),
+      payoutFailedAt: FieldValue.delete(),
+      payoutInFlight: false,
+      payoutFailureAcknowledgedAt: FieldValue.delete(),
+      payoutFailureAcknowledgedBy: FieldValue.delete(),
     });
   });
 

@@ -65,6 +65,8 @@ async function persistPayoutAttempt(
   if (params.status === "failed") {
     topLevel.payError = params.error ?? "Transfer failed";
     topLevel.payoutFailedAt = FieldValue.serverTimestamp();
+    topLevel.payoutFailureAcknowledgedAt = FieldValue.delete();
+    topLevel.payoutFailureAcknowledgedBy = FieldValue.delete();
   } else if (params.status === "succeeded") {
     topLevel.payError = FieldValue.delete();
     topLevel.payoutFailedAt = FieldValue.delete();
@@ -93,6 +95,8 @@ async function persistTopLevelPayout(
   if (params.status === "failed") {
     topLevel.payError = params.error ?? "Transfer failed";
     topLevel.payoutFailedAt = FieldValue.serverTimestamp();
+    topLevel.payoutFailureAcknowledgedAt = FieldValue.delete();
+    topLevel.payoutFailureAcknowledgedBy = FieldValue.delete();
   } else if (params.status === "succeeded") {
     topLevel.payError = FieldValue.delete();
     topLevel.payoutFailedAt = FieldValue.delete();

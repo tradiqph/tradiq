@@ -89,8 +89,6 @@ export function hasUnresolvedPayoutFailure(data: {
   payoutAttempts?: SerializedPayoutAttempt[];
   payoutFailureAcknowledgedAt?: unknown;
 }): boolean {
-  if (isPayoutFailureAcknowledged(data)) return false;
-
   if (data.status !== "pending" && data.status !== "approved") return false;
 
   if (hasSucceededPayoutAttempt(data.payoutAttempts)) return false;
@@ -111,6 +109,10 @@ export function hasUnresolvedPayoutFailure(data: {
     return true;
   }
   if (data.payError) return true;
+
+  // Acknowledgment only resolves historical failures, not a new failed payout.
+  if (isPayoutFailureAcknowledged(data)) return false;
+
   return false;
 }
 
@@ -127,9 +129,15 @@ export function withdrawalHasFailedAttemptOnDate(
   },
   dateKey: string
 ): boolean {
-  if (isPayoutFailureAcknowledged(data)) return false;
   if (hasSucceededPayoutAttempt(data.payoutAttempts)) return false;
   if (data.paymongoTransferStatus === "succeeded") return false;
+  if (
+    isPayoutFailureAcknowledged(data) &&
+    data.paymongoTransferStatus !== "failed" &&
+    !data.payError
+  ) {
+    return false;
+  }
 
   const failedFromLedger = getFailedAttemptsForDate(
     data.payoutAttempts ?? [],

@@ -246,6 +246,8 @@ export function mirrorTopLevelFromLatestAttempt(
   if (latest.status === "failed") {
     update.payError = latest.error ?? "Transfer failed";
     update.payoutFailedAt = latest.failedAt ?? latest.attemptedAt;
+    update.payoutFailureAcknowledgedAt = FieldValue.delete();
+    update.payoutFailureAcknowledgedBy = FieldValue.delete();
   } else if (latest.status === "succeeded") {
     update.payError = FieldValue.delete();
     update.payoutFailedAt = FieldValue.delete();

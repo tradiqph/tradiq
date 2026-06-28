@@ -272,7 +272,10 @@ export async function PATCH(request: NextRequest) {
       });
     }
   } else if (action === "acknowledgePayout") {
-    if (reqData.payoutFailureAcknowledgedAt) {
+    if (
+      reqData.payoutFailureAcknowledgedAt &&
+      !isActionablePayoutFailure(reqData)
+    ) {
       return NextResponse.json(
         { error: "Payout failure already acknowledged" },
         { status: 409 }
