@@ -3,7 +3,10 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   increment,
+  limit,
+  query,
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
@@ -14,7 +17,7 @@ import {
   WITHDRAWAL_PROCESSING_FEE_RATE,
 } from "@/lib/finance";
 import { WithdrawalAccount } from "@/types";
-import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
+import { getWithdrawalEligibilityBlocker } from "@/lib/withdrawal-eligibility";
 
 async function clientWithdrawalEnabled() {
   const firestore = db;
@@ -63,6 +66,10 @@ export async function createWithdrawalOnClient({
 
   const { processingFee, netPayout } = calculateWithdrawalBreakdown(amount);
   const requestRef = doc(collection(firestore, "withdrawalRequests"));
+  const botsSnap = await getDocs(
+    query(collection(firestore, "users", userId, "bots"), limit(1))
+  );
+  const hasBotInvestment = !botsSnap.empty;
 
   await runTransaction(firestore, async (tx) => {
     const userRef = doc(firestore, "users", userId);
@@ -70,8 +77,10 @@ export async function createWithdrawalOnClient({
     if (!userSnap.exists()) throw new Error("User not found");
 
     const userData = userSnap.data()!;
-    const depositGateMessage = getWithdrawalDepositGateMessage(userData);
-    if (depositGateMessage) throw new Error(depositGateMessage);
+    const eligibilityBlocker = getWithdrawalEligibilityBlocker(userData, {
+      hasBotInvestment,
+    });
+    if (eligibilityBlocker) throw new Error(eligibilityBlocker);
 
     const balance = userData.walletBalance ?? 0;
     if (balance < amount) throw new Error("Insufficient wallet balance");

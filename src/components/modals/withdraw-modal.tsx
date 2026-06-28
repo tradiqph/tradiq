@@ -15,6 +15,7 @@ import { GoldButton } from "@/components/ui/gold-button";
 import { PesoAmount } from "@/components/ui/peso-amount";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { useUserBots } from "@/hooks/use-user-bots";
 import { toast } from "sonner";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -29,7 +30,7 @@ import { createWithdrawalOnClient } from "@/lib/withdrawals";
 import { maskAccountNumber } from "@/lib/withdrawal-accounts";
 import { WithdrawalAccount } from "@/types";
 import { cn } from "@/lib/utils";
-import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
+import { getWithdrawalEligibilityStatus } from "@/lib/withdrawal-eligibility";
 
 interface WithdrawModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ export function WithdrawModal({
   onOpenDeposit,
 }: WithdrawModalProps) {
   const { user, profile, pinSet, refreshProfile, refreshPinStatus } = useAuth();
+  const { bots } = useUserBots(user?.uid);
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [accounts, setAccounts] = useState<(WithdrawalAccount & { id: string })[]>([]);
@@ -76,12 +78,15 @@ export function WithdrawModal({
 
   const amountError = num > 0 ? validateWithdrawalAmount(num) : null;
   const exceedsBalance = num > walletBalance;
-  const depositGateMessage = profile
-    ? getWithdrawalDepositGateMessage(profile)
+  const eligibility = profile
+    ? getWithdrawalEligibilityStatus(profile, {
+        hasBotInvestment: bots.length > 0,
+      })
     : null;
+  const eligibilityBlocker = eligibility?.message ?? null;
 
   const handleSubmit = async () => {
-    if (!user || amountError || exceedsBalance || depositGateMessage) return;
+    if (!user || amountError || exceedsBalance || eligibilityBlocker) return;
     if (!selectedAccount || !selected) {
       toast.error("Add a withdrawal account first");
       return;
@@ -157,27 +162,41 @@ export function WithdrawModal({
           <PesoAmount amount={walletBalance} gold className="text-2xl" />
         </div>
 
-        {depositGateMessage ? (
+        {eligibilityBlocker ? (
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-3">
-            <p className="text-sm font-medium text-white">Deposit required</p>
-            <p className="mt-1 text-xs text-zinc-500">{depositGateMessage}</p>
-            {onOpenDeposit ? (
-              <button
-                type="button"
-                onClick={onOpenDeposit}
-                className="mt-2 text-sm text-amber-400 hover:underline cursor-pointer"
-              >
-                Make a deposit →
-              </button>
-            ) : (
-              <Link
-                href="/home"
-                onClick={() => onOpenChange(false)}
-                className="mt-2 inline-block text-sm text-amber-400 hover:underline"
-              >
-                Go to Home to deposit →
-              </Link>
-            )}
+            <p className="text-sm font-medium text-white">
+              Withdrawal requirements
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">{eligibilityBlocker}</p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {eligibility?.missingDeposit &&
+                (onOpenDeposit ? (
+                  <button
+                    type="button"
+                    onClick={onOpenDeposit}
+                    className="cursor-pointer text-sm text-amber-400 hover:underline"
+                  >
+                    Make a deposit →
+                  </button>
+                ) : (
+                  <Link
+                    href="/home"
+                    onClick={() => onOpenChange(false)}
+                    className="text-sm text-amber-400 hover:underline"
+                  >
+                    Go to Home to deposit →
+                  </Link>
+                ))}
+              {eligibility?.missingBot && (
+                <Link
+                  href="/bot"
+                  onClick={() => onOpenChange(false)}
+                  className="text-sm text-amber-400 hover:underline"
+                >
+                  Subscribe to a bot →
+                </Link>
+              )}
+            </div>
           </div>
         ) : null}
 
@@ -347,7 +366,7 @@ export function WithdrawModal({
           onClick={handleSubmit}
           disabled={
             loading ||
-            Boolean(depositGateMessage) ||
+            Boolean(eligibilityBlocker) ||
             !hasPin ||
             num <= 0 ||
             Boolean(amountError) ||

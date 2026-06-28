@@ -20,8 +20,8 @@ import {
   getPinLockoutMessage,
   recordPinFailure,
 } from "@/lib/security/pin-lockout";
-import { getWithdrawalDepositGateMessage } from "@/lib/withdrawal-eligibility";
-import { normalizeReferralStats } from "@/lib/referral-stats";
+import { getWithdrawalEligibilityBlocker } from "@/lib/withdrawal-eligibility";
+import { userHasBotInvestment } from "@/lib/user-bot-investment";
 import { sendWithdrawalRequestAlert } from "@/lib/email/send";
 import type { WithdrawalAccount } from "@/types";
 
@@ -85,16 +85,16 @@ export async function POST(request: NextRequest) {
   }
 
   const userData = userSnap.data()!;
+  const hasBotInvestment = await userHasBotInvestment(db, decoded.uid);
 
-  const depositGateMessage = getWithdrawalDepositGateMessage(userData);
-  if (depositGateMessage) {
-    const referralEarned = normalizeReferralStats(
-      userData.referralStats
-    ).totalEarned;
+  const eligibilityBlocker = getWithdrawalEligibilityBlocker(userData, {
+    hasBotInvestment,
+  });
+  if (eligibilityBlocker) {
     console.info(
-      `[withdrawals/create] deposit gate uid=${decoded.uid} referralEarned=${referralEarned}`
+      `[withdrawals/create] eligibility gate uid=${decoded.uid} totalDeposited=${userData.totalDeposited ?? 0} hasBotInvestment=${hasBotInvestment}`
     );
-    return NextResponse.json({ error: depositGateMessage }, { status: 403 });
+    return NextResponse.json({ error: eligibilityBlocker }, { status: 403 });
   }
 
   if (userData.securityPinHash) {
