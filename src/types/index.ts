@@ -131,6 +131,16 @@ export interface WithdrawalAccount {
 
 export type PaymongoTransferStatus = "pending" | "succeeded" | "failed";
 
+export interface PayoutAttempt {
+  transferId: string;
+  status: PaymongoTransferStatus;
+  centavos: number;
+  attemptedAt: unknown;
+  failedAt?: unknown;
+  error?: string;
+  attemptedBy: string;
+}
+
 export interface WithdrawalRequest {
   userId: string;
   userEmail: string;
@@ -151,6 +161,12 @@ export interface WithdrawalRequest {
   payoutInFlight?: boolean;
   payoutLockedBy?: string;
   payoutLockedAt?: Timestamp;
+  payoutFailedAt?: Timestamp;
+  payoutFailureAcknowledgedAt?: Timestamp;
+  payoutFailureAcknowledgedBy?: string;
+  rejectionReason?: string;
+  payoutAttempts?: PayoutAttempt[];
+  payoutTransferIds?: string[];
 }
 
 export interface Deposit {

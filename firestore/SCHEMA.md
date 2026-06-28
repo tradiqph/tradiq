@@ -45,6 +45,11 @@ Paymongo QR Ph payment tracking.
 ### `withdrawalRequests/{id}`
 Admin cashout queue.
 
+| Field | Type | Notes |
+|-------|------|-------|
+| payoutFailureAcknowledgedAt | timestamp \| null | Set when admin manually marks a failed payout as processed |
+| payoutFailureAcknowledgedBy | string \| null | Admin uid that acknowledged the payout failure |
+
 ### `reward_claims/{id}`
 Physical reward fulfillment queue. Created via server API on member claim.
 
