@@ -178,11 +178,7 @@ export function MemberRankSheet({
                 <SummaryCard
                   label="Qualified L1 / Total L1"
                   value={`${data.metrics.qualifiedDirectReferrals} / ${data.metrics.directReferralCount}`}
-                  sub={
-                    data.metrics.eachReferralMet
-                      ? "Each L1 invested ≥ ₱10,000"
-                      : "Not all L1 meet ₱10,000"
-                  }
+                  sub={`${data.metrics.qualifiedDirectReferrals} direct referral${data.metrics.qualifiedDirectReferrals === 1 ? "" : "s"} with ≥ ₱10,000 bot subs`}
                 />
                 <SummaryCard
                   label="Group Sales"

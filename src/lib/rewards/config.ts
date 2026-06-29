@@ -276,7 +276,6 @@ export function getEligibleTiers(
   const metrics: RankMetrics = {
     personalInvestment: 0,
     qualifiedDirectReferrals: 0,
-    eachReferralMet: false,
     directReferralCount: 0,
     groupSales,
   };

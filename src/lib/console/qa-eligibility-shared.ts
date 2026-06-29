@@ -6,7 +6,6 @@ export const QA_OVERRIDE_TTL_MS = 24 * 60 * 60 * 1000;
 export const LEADER_QA_METRICS: RankMetrics = {
   personalInvestment: 20_000,
   qualifiedDirectReferrals: 10,
-  eachReferralMet: true,
   directReferralCount: 10,
   groupSales: 500_000,
 };

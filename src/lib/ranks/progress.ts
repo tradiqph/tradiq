@@ -13,7 +13,6 @@ import type { RankCardStatus } from "@/lib/ranks/display";
 export interface RankMetrics {
   personalInvestment: number;
   qualifiedDirectReferrals: number;
-  eachReferralMet: boolean;
   directReferralCount: number;
   groupSales: number;
 }
@@ -87,24 +86,16 @@ export function getDirectReferralStats(
   minInvestment: number
 ) {
   let qualifiedCount = 0;
-  let eachReferralMet = l1MemberIds.length > 0;
 
   for (const memberId of l1MemberIds) {
     const invested = botTotalsByUserId.get(memberId) ?? 0;
     if (invested >= minInvestment) {
       qualifiedCount += 1;
-    } else {
-      eachReferralMet = false;
     }
-  }
-
-  if (l1MemberIds.length === 0) {
-    eachReferralMet = false;
   }
 
   return {
     qualifiedCount,
-    eachReferralMet,
     directReferralCount: l1MemberIds.length,
   };
 }
@@ -140,7 +131,7 @@ export function buildChecklist(
   items.push({
     id: "eachReferralInvested",
     label: `Each Referral Invested ≥ ₱${req.eachReferralMinInvestment.toLocaleString("en-PH")}`,
-    met: metrics.eachReferralMet,
+    met: metrics.qualifiedDirectReferrals >= req.qualifiedDirectReferrals,
   });
 
   items.push({
@@ -228,10 +219,10 @@ export function evaluateRankProgress(
   const progressBars = buildProgressBars(tier, metrics);
   const allMet = checklist.every((item) => item.met);
   const percentComplete =
-    progressBars.length > 0
+    checklist.length > 0
       ? Math.round(
-          progressBars.reduce((sum, bar) => sum + bar.percent, 0) /
-            progressBars.length
+          (checklist.filter((item) => item.met).length / checklist.length) *
+            100
         )
       : 0;
 

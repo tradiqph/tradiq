@@ -1,6 +1,6 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { buildDownlineLevels, parseUserRecords } from "@/lib/console/member-network";
-import { normalizeMemberRank } from "@/lib/ranks/config";
+import { normalizeMemberRank, getRankTier } from "@/lib/ranks/config";
 import { isQaOverrideActive, LEADER_QA_METRICS } from "@/lib/console/qa-eligibility-shared";
 import { getRankBadge } from "@/lib/ranks/display";
 import {
@@ -72,7 +72,7 @@ export async function loadRankMetrics(
   const directStats = getDirectReferralStats(
     l1MemberIds,
     botTotals,
-    10_000
+    getRankTier("leader").requirements.eachReferralMinInvestment
   );
 
   const groupSales = getGroupSales(
@@ -82,7 +82,6 @@ export async function loadRankMetrics(
   const metrics: RankMetrics = {
     personalInvestment,
     qualifiedDirectReferrals: directStats.qualifiedCount,
-    eachReferralMet: directStats.eachReferralMet,
     directReferralCount: directStats.directReferralCount,
     groupSales,
   };
